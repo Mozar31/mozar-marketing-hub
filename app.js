@@ -181,6 +181,72 @@ async function runPageSpeed(url, attempt) {
   return res.json();
 }
 
+function plainSummary(perf, seo, audits, url) {
+  const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "seu site"; } })();
+
+  // veredito geral de velocidade
+  let head, headText;
+  if (perf >= 90) {
+    head = "🟢 Seu site está rápido";
+    headText = `O <strong>${escapeHTML(host)}</strong> carrega rápido no celular (nota ${perf} de 100). Na prática: quem clica no seu site consegue ver o conteúdo quase na hora, e pouquíssima gente desiste por demora. Isso é um ponto forte — a maioria dos sites brasileiros não chega nessa nota.`;
+  } else if (perf >= 70) {
+    head = "🟡 Seu site é razoável, mas deixa dinheiro na mesa";
+    headText = `O <strong>${escapeHTML(host)}</strong> tem nota ${perf} de 100 no celular. Ele funciona, mas tem uma demora perceptível — e estudos mostram que <strong>cada segundo a mais de espera derruba as vendas em até 7%</strong>. Dá para melhorar sem reconstruir o site.`;
+  } else if (perf >= 50) {
+    head = "🟠 Atenção: seu site está lento no celular";
+    headText = `O <strong>${escapeHTML(host)}</strong> tem nota ${perf} de 100. No celular (onde está a maioria dos seus clientes), a espera é longa o bastante para <strong>parte dos visitantes desistir antes de ver qualquer coisa</strong> — visita que você pagou para atrair (anúncio, Google) e foi embora.`;
+  } else {
+    head = "🔴 Crítico: seu site está muito lento";
+    headText = `O <strong>${escapeHTML(host)}</strong> tem nota ${perf} de 100 no celular. Isso significa que <strong>boa parte dos visitantes desiste antes de a página abrir</strong>. Se você investe em anúncios ou depende do Google, está literalmente pagando por visitantes que vão embora sem ver seu conteúdo.`;
+  }
+
+  // métricas em linguagem simples
+  const items = [];
+  const lcp = audits["largest-contentful-paint"];
+  if (lcp) {
+    const v = lcp.numericValue;
+    const nota = v <= 2500 ? "✅ bom" : v <= 4000 ? "⚠️ pode melhorar" : "🔴 ruim";
+    items.push(`<li><strong>Tempo para o conteúdo aparecer (LCP): ${lcp.displayValue} — ${nota}.</strong> É quanto o visitante espera até ver a parte principal da página. O ideal é até 2,5 segundos — acima disso, a sensação é de site "pesado".</li>`);
+  }
+  const cls = audits["cumulative-layout-shift"];
+  if (cls) {
+    const v = cls.numericValue;
+    const nota = v <= 0.1 ? "✅ bom" : v <= 0.25 ? "⚠️ pode melhorar" : "🔴 ruim";
+    items.push(`<li><strong>Estabilidade da página (CLS): ${cls.displayValue} — ${nota}.</strong> Mede se as coisas "pulam" de lugar enquanto a página carrega (aquele botão que muda de posição na hora que você vai clicar). O ideal é ficar abaixo de 0,1.</li>`);
+  }
+  const tbt = audits["total-blocking-time"];
+  if (tbt) {
+    const v = tbt.numericValue;
+    const nota = v <= 200 ? "✅ bom" : v <= 600 ? "⚠️ pode melhorar" : "🔴 ruim";
+    items.push(`<li><strong>Tempo travado (TBT): ${tbt.displayValue} — ${nota}.</strong> É quanto tempo a página fica "congelada", sem responder ao toque ou clique. O ideal é ficar abaixo de 200 ms.</li>`);
+  }
+
+  // SEO em linguagem simples
+  let seoText;
+  if (seo >= 90) {
+    seoText = `<li><strong>Nota de SEO ${seo}/100 — ✅ estrutura pronta para o Google.</strong> Significa que o Google consegue ler e entender seu site sem barreiras técnicas. <strong>Importante:</strong> nota alta aqui NÃO garante aparecer em 1º lugar — isso é só o "básico bem feito". Posição no Google vem de conteúdo, palavras-chave, autoridade e trabalho contínuo de SEO.</li>`;
+  } else if (seo >= 70) {
+    seoText = `<li><strong>Nota de SEO ${seo}/100 — ⚠️ o Google encontra obstáculos.</strong> Existem falhas técnicas (títulos, descrições, links ou marcações) que dificultam o Google entender suas páginas. Cada falha dessas é posição perdida para concorrentes com site mais organizado.</li>`;
+  } else {
+    seoText = `<li><strong>Nota de SEO ${seo}/100 — 🔴 o Google tem dificuldade com seu site.</strong> Problemas técnicos estão impedindo o Google de ler seu site direito. Na prática, você fica invisível nas buscas — e o cliente que procura seu produto encontra o concorrente.</li>`;
+  }
+  items.push(seoText);
+
+  // conclusão
+  let conclusion;
+  if (perf >= 90 && seo >= 90) {
+    conclusion = "📌 <strong>Resumo:</strong> a parte técnica está saudável. O próximo passo para vender mais não é mexer no site — é <strong>atrair mais visitantes</strong> (tráfego pago, SEO de conteúdo) e converter melhor quem já chega.";
+  } else if (perf >= 90) {
+    conclusion = "📌 <strong>Resumo:</strong> velocidade ótima, mas os pontos de SEO acima estão custando posições no Google. Corrigindo, você aparece mais sem pagar mais por isso.";
+  } else if (seo >= 90) {
+    conclusion = "📌 <strong>Resumo:</strong> o Google entende bem seu site, mas a lentidão está espantando visitantes antes da página abrir. Velocidade é a correção com retorno mais rápido aqui.";
+  } else {
+    conclusion = "📌 <strong>Resumo:</strong> velocidade e SEO precisam de atenção — hoje o site espanta visitantes e ainda dificulta ser encontrado. A boa notícia: são problemas técnicos com solução conhecida.";
+  }
+
+  return `<h3>${head}</h3><p style="color:var(--text-dim);font-size:0.92rem;margin-bottom:14px">${headText}</p><ul>${items.join("")}</ul><p style="margin-top:14px;font-size:0.92rem">${conclusion}</p>`;
+}
+
 speedForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const url = normalizeUrl(document.getElementById("speed-url").value);
@@ -224,6 +290,9 @@ speedForm.addEventListener("submit", async (e) => {
       card.appendChild(el("div", "m-value " + metricClass(m.id, a.numericValue), a.displayValue || "—"));
       metricsWrap.appendChild(card);
     });
+
+    // resumo em linguagem simples
+    document.getElementById("speed-summary").innerHTML = plainSummary(perf, seo, audits, url);
 
     const opps = Object.values(audits)
       .filter((a) => a.details && a.details.type === "opportunity" && (a.details.overallSavingsMs || 0) > 0)
