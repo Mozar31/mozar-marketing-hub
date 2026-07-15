@@ -1,36 +1,47 @@
-/* ===== Mozar Marketing Hub — app.js ===== */
+/* ===== Consig Invest | Marketing Hub — app.js ===== */
 
-const WHATSAPP = "5551999999999"; // troque pelo seu número (formato: 55 + DDD + número)
+const WHATSAPP = "5551983493659";
+const PAGESPEED_KEY = ""; // opcional: chave gratuita da API PageSpeed (aumenta o limite de análises)
+const GMB_RESOLVER = "https://dinastia-n8n-webhook.u9dep8.easypanel.host/webhook/gmb-resolve";
 
 /* ============================================================
-   NAVEGAÇÃO POR ABAS
+   NAVEGAÇÃO (abas + rotas por hash)
 ============================================================ */
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => {
-      t.classList.remove("active");
-      t.setAttribute("aria-selected", "false");
-    });
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
-    tab.setAttribute("aria-selected", "true");
-    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+const TAB_BY_HASH = { "velocidade": "speed", "google-meu-negocio": "gmb", "roi": "roi", "conversores": "conv" };
+
+function showTab(tabKey) {
+  document.querySelectorAll(".tab").forEach((t) => {
+    const on = t.dataset.tab === tabKey;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
   });
+  document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+  document.getElementById("panel-" + tabKey).classList.add("active");
+}
+
+function route() {
+  const hash = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
+  const [main, sub] = hash.split("/");
+  const tabKey = TAB_BY_HASH[main] || "speed";
+  showTab(tabKey);
+  if (tabKey === "conv") showConverter(sub || null);
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => { location.hash = tab.dataset.hash; });
 });
+window.addEventListener("hashchange", route);
 
 /* ============================================================
-   LINKS DE WHATSAPP (CTA por ferramenta + botão do header)
+   LINKS DE WHATSAPP
 ============================================================ */
 function waLink(msg) {
   return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(msg);
 }
-
-document.querySelectorAll(".cta-whats").forEach((a) => {
-  a.href = waLink(a.dataset.msg);
-});
+document.querySelectorAll(".cta-whats").forEach((a) => { a.href = waLink(a.dataset.msg); });
 document.getElementById("header-whats").href = waLink(
-  "Olá! Estou no Mozar Marketing Hub e quero falar com um especialista em marketing digital."
+  "Olá, vim através do Hub da Consig Invest e gostaria de mais informações..."
 );
 
 /* ============================================================
@@ -47,13 +58,69 @@ function el(tag, className, html) {
   return node;
 }
 
+function escapeHTML(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+const loadedScripts = {};
+function loadScript(src) {
+  if (loadedScripts[src]) return loadedScripts[src];
+  loadedScripts[src] = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Falha ao carregar biblioteca. Verifique sua conexão."));
+    document.head.appendChild(s);
+  });
+  return loadedScripts[src];
+}
+
+const LIB = {
+  pdfjs: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  pdfjsWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  pdflib: "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js",
+  mammoth: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js",
+  xlsx: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+  html2pdf: "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
+};
+
+async function ensurePdfjs() {
+  await loadScript(LIB.pdfjs);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = LIB.pdfjsWorker;
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+
+function baseName(name) {
+  return name.replace(/\.[^.]+$/, "");
+}
+
 /* ============================================================
-   FERRAMENTA 1 — ANÁLISE DE VELOCIDADE & SEO (PageSpeed Insights)
+   FERRAMENTA 1 — VELOCIDADE & SEO (PageSpeed Insights)
 ============================================================ */
 const speedForm = document.getElementById("speed-form");
 const speedBtn = document.getElementById("speed-btn");
 const speedError = document.getElementById("speed-error");
 const speedResults = document.getElementById("speed-results");
+
+function normalizeUrl(raw) {
+  let u = raw.trim().replace(/\s+/g, "");
+  if (!u) return null;
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try {
+    const parsed = new URL(u);
+    if (!parsed.hostname.includes(".")) return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
 
 function scoreColor(score) {
   if (score >= 90) return "#3DDC8E";
@@ -78,45 +145,60 @@ function gaugeSVG(score) {
 }
 
 function metricClass(id, numericValue) {
-  // limites do Lighthouse (mobile)
-  const limits = {
-    lcp: [2500, 4000],
-    cls: [0.1, 0.25],
-    tbt: [200, 600],
-  };
+  const limits = { lcp: [2500, 4000], cls: [0.1, 0.25], tbt: [200, 600] };
   const [good, mid] = limits[id];
   if (numericValue <= good) return "good";
   if (numericValue <= mid) return "mid";
   return "bad";
 }
 
+async function runPageSpeed(url, attempt) {
+  const api =
+    "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" +
+    encodeURIComponent(url) +
+    "&strategy=mobile&category=performance&category=seo&locale=pt_BR" +
+    (PAGESPEED_KEY ? "&key=" + PAGESPEED_KEY : "");
+
+  const res = await fetch(api);
+
+  if (res.status === 429) {
+    if (attempt < 2) {
+      // espera 65s com contagem regressiva e tenta de novo sozinho
+      for (let s = 65; s > 0; s--) {
+        speedBtn.innerHTML = `<span class="spinner"></span> Fila cheia — nova tentativa em ${s}s`;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      speedBtn.innerHTML = '<span class="spinner"></span> Analisando… (até 40s)';
+      return runPageSpeed(url, attempt + 1);
+    }
+    throw new Error("RATE_LIMIT");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = body && body.error && body.error.message ? body.error.message : "";
+    throw new Error("API_ERROR:" + msg);
+  }
+  return res.json();
+}
+
 speedForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const url = document.getElementById("speed-url").value.trim();
+  const url = normalizeUrl(document.getElementById("speed-url").value);
 
   speedError.classList.add("hidden");
+
+  if (!url) {
+    speedError.textContent = "⚠️ Endereço inválido. Digite algo como: seusite.com.br";
+    speedError.classList.remove("hidden");
+    return;
+  }
+
   speedResults.classList.add("hidden");
   speedBtn.disabled = true;
   speedBtn.innerHTML = '<span class="spinner"></span> Analisando… (até 40s)';
 
   try {
-    const api =
-      "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" +
-      encodeURIComponent(url) +
-      "&strategy=mobile&category=performance&category=seo&locale=pt_BR";
-
-    const res = await fetch(api);
-
-    if (res.status === 429) {
-      throw new Error("RATE_LIMIT");
-    }
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      const msg = body && body.error && body.error.message ? body.error.message : "";
-      throw new Error("API_ERROR:" + msg);
-    }
-
-    const data = await res.json();
+    const data = await runPageSpeed(url, 0);
     const lh = data.lighthouseResult;
     if (!lh) throw new Error("API_ERROR:Resposta sem resultado Lighthouse.");
 
@@ -126,7 +208,6 @@ speedForm.addEventListener("submit", async (e) => {
     document.getElementById("gauge-perf").innerHTML = gaugeSVG(perf);
     document.getElementById("gauge-seo").innerHTML = gaugeSVG(seo);
 
-    // Métricas principais
     const audits = lh.audits;
     const metricsWrap = document.getElementById("speed-metrics");
     metricsWrap.innerHTML = "";
@@ -140,12 +221,10 @@ speedForm.addEventListener("submit", async (e) => {
       if (!a) return;
       const card = el("div", "metric-card");
       card.appendChild(el("div", "m-label", m.label));
-      const cls = metricClass(m.id, a.numericValue);
-      card.appendChild(el("div", "m-value " + cls, a.displayValue || "—"));
+      card.appendChild(el("div", "m-value " + metricClass(m.id, a.numericValue), a.displayValue || "—"));
       metricsWrap.appendChild(card);
     });
 
-    // Top 4 oportunidades
     const opps = Object.values(audits)
       .filter((a) => a.details && a.details.type === "opportunity" && (a.details.overallSavingsMs || 0) > 0)
       .sort((a, b) => (b.details.overallSavingsMs || 0) - (a.details.overallSavingsMs || 0))
@@ -158,7 +237,7 @@ speedForm.addEventListener("submit", async (e) => {
     } else {
       opps.forEach((o) => {
         const li = el("li");
-        li.appendChild(el("span", null, o.title));
+        li.appendChild(el("span", null, escapeHTML(o.title)));
         const secs = (o.details.overallSavingsMs / 1000).toFixed(1).replace(".", ",");
         li.appendChild(el("span", "savings", "economia ~" + secs + "s"));
         oppsList.appendChild(li);
@@ -169,11 +248,11 @@ speedForm.addEventListener("submit", async (e) => {
   } catch (err) {
     let msg;
     if (err.message === "RATE_LIMIT") {
-      msg = "⏳ Limite atingido, aguarde 1 minuto e tente novamente.";
+      msg = "⏳ O Google está com fila de análises agora. Tente novamente em 1 minuto — vale a pena!";
     } else if (err.message.startsWith("API_ERROR")) {
       const detail = err.message.split(":").slice(1).join(":");
       msg =
-        "Não foi possível analisar este endereço. Verifique se a URL está correta e acessível publicamente." +
+        "Não foi possível analisar este endereço. Verifique se o site está no ar e acessível." +
         (detail ? " (" + detail + ")" : "");
     } else {
       msg = "Erro de conexão. Verifique sua internet e tente novamente.";
@@ -187,10 +266,9 @@ speedForm.addEventListener("submit", async (e) => {
 });
 
 /* ============================================================
-   FERRAMENTA 2 — DIAGNÓSTICO GOOGLE MEU NEGÓCIO
+   FERRAMENTA 2 — ANÁLISE DA FICHA DO GOOGLE (link do Maps)
 ============================================================ */
 const GMB_QUESTIONS = [
-  { q: "Sua empresa tem uma ficha no Google (aparece no Google Maps)?", missing: "Criar a ficha da empresa no Google" },
   { q: "A ficha foi reivindicada e você tem acesso de administrador?", missing: "Reivindicar a propriedade da ficha" },
   { q: "O telefone cadastrado está correto e atende?", missing: "Corrigir o telefone de contato" },
   { q: "Os horários de funcionamento estão preenchidos e atualizados?", missing: "Atualizar os horários de funcionamento" },
@@ -202,32 +280,110 @@ const GMB_QUESTIONS = [
   { q: "A ficha tem o link do seu site cadastrado?", missing: "Adicionar o link do site na ficha" },
 ];
 
-const gmbList = document.getElementById("gmb-questions");
-GMB_QUESTIONS.forEach((item, i) => {
-  const li = el("li");
-  li.appendChild(el("span", "q-text", item.q));
-  const opts = el("div", "q-opts");
-  opts.innerHTML = `
-    <label><input type="radio" name="gmb-q${i}" value="1" required> Sim</label>
-    <label><input type="radio" name="gmb-q${i}" value="0"> Não</label>`;
-  li.appendChild(opts);
-  gmbList.appendChild(li);
+const gmbForm = document.getElementById("gmb-form");
+const gmbBtn = document.getElementById("gmb-btn");
+const gmbError = document.getElementById("gmb-error");
+const gmbChecklist = document.getElementById("gmb-checklist");
+const gmbResult = document.getElementById("gmb-result");
+
+function parseMapsUrl(raw) {
+  // extrai o nome da ficha de uma URL completa do Google Maps
+  const m = raw.match(/\/maps\/place\/([^\/@?]+)/);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1].replace(/\+/g, " "));
+  } catch {
+    return m[1].replace(/\+/g, " ");
+  }
+}
+
+function isMapsLink(raw) {
+  return /(?:google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
+}
+
+function buildChecklist(businessName) {
+  const found = document.getElementById("gmb-found");
+  found.innerHTML = businessName
+    ? "✅ Ficha encontrada no Google: <strong>" + escapeHTML(businessName) + "</strong>" +
+      '<span class="result-detail">Ótimo — sua empresa existe no Google Maps. Agora vamos medir a força dessa ficha.</span>'
+    : "✅ Link recebido!" +
+      '<span class="result-detail">Agora vamos medir a força da sua ficha.</span>';
+
+  const list = document.getElementById("gmb-questions");
+  list.innerHTML = "";
+  GMB_QUESTIONS.forEach((item, i) => {
+    const li = el("li");
+    li.appendChild(el("span", "q-text", escapeHTML(item.q)));
+    const opts = el("div", "q-opts");
+    opts.innerHTML = `
+      <label><input type="radio" name="gmb-q${i}" value="1"> Sim</label>
+      <label><input type="radio" name="gmb-q${i}" value="0"> Não</label>`;
+    li.appendChild(opts);
+    list.appendChild(li);
+  });
+
+  gmbResult.classList.add("hidden");
+  gmbChecklist.classList.remove("hidden");
+  gmbChecklist.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+gmbForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const raw = document.getElementById("gmb-link").value.trim();
+  gmbError.classList.add("hidden");
+
+  if (!isMapsLink(raw)) {
+    gmbError.innerHTML =
+      "⚠️ Este não parece ser um link do Google Maps. Abra sua empresa no Maps, toque em <strong>Compartilhar → Copiar link</strong> e cole aqui.";
+    gmbError.classList.remove("hidden");
+    return;
+  }
+
+  // URL completa: dá pra extrair o nome sem sair do navegador
+  let name = parseMapsUrl(raw);
+
+  if (!name) {
+    // link curto: resolve pelo webhook
+    gmbBtn.disabled = true;
+    gmbBtn.innerHTML = '<span class="spinner"></span> Verificando ficha…';
+    try {
+      const res = await fetch(GMB_RESOLVER + "?url=" + encodeURIComponent(raw));
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.name) name = data.name;
+      }
+    } catch {
+      /* segue sem nome — o checklist ainda funciona */
+    } finally {
+      gmbBtn.disabled = false;
+      gmbBtn.textContent = "Analisar ficha";
+    }
+  }
+
+  buildChecklist(name);
 });
 
-document.getElementById("gmb-form").addEventListener("submit", (e) => {
-  e.preventDefault();
+document.getElementById("gmb-no-listing").addEventListener("click", () => {
+  gmbChecklist.classList.add("hidden");
+  const banner = document.getElementById("gmb-status");
+  banner.innerHTML =
+    "🚨 Ficha inexistente" +
+    '<span class="result-detail">Sua empresa é <strong>invisível no Google Maps</strong>. Quando alguém procura pelo seu serviço na sua cidade, quem aparece — e recebe a ligação — é o concorrente. Cada dia sem ficha é faturamento indo embora.</span>';
+  document.getElementById("gmb-missing").innerHTML = "";
+  gmbResult.classList.remove("hidden");
+  gmbResult.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+document.getElementById("gmb-diagnose").addEventListener("click", () => {
   const answers = GMB_QUESTIONS.map((_, i) => {
     const checked = document.querySelector(`input[name="gmb-q${i}"]:checked`);
     return checked ? Number(checked.value) : 0;
   });
-  const score = answers.reduce((s, v) => s + v, 0);
+  // a ficha existe (link validado) = 1 ponto, + 9 itens do checklist
+  const score = 1 + answers.reduce((s, v) => s + v, 0);
 
   let title, detail;
-  if (answers[0] === 0) {
-    title = "🚨 Ficha inexistente";
-    detail =
-      "Sua empresa é <strong>invisível no Google Maps</strong>. Quando alguém procura pelo seu serviço na sua cidade, quem aparece — e recebe a ligação — é o concorrente. Cada dia sem ficha é faturamento indo embora.";
-  } else if (score <= 4) {
+  if (score <= 4) {
     title = "🚨 Ficha extremamente incompleta";
     detail =
       "Com esse nível de cadastro, o Google quase não mostra sua empresa. Você <strong>não está aparecendo</strong> nas buscas locais e está perdendo ligações, clientes e faturamento para concorrentes com fichas completas.";
@@ -241,8 +397,7 @@ document.getElementById("gmb-form").addEventListener("submit", (e) => {
       "Sua ficha está bem cadastrada, mas <strong>ficha sozinha não basta</strong> para dominar as buscas locais: seus concorrentes investem em SEO local e Google Ads para aparecer antes de você. Sem essa aceleração, parte das ligações e do faturamento continua indo para eles.";
   }
 
-  const banner = document.getElementById("gmb-status");
-  banner.innerHTML = title + '<span class="result-detail">' + detail + "</span>";
+  document.getElementById("gmb-status").innerHTML = title + '<span class="result-detail">' + detail + "</span>";
 
   const missingWrap = document.getElementById("gmb-missing");
   missingWrap.innerHTML = "";
@@ -250,25 +405,52 @@ document.getElementById("gmb-form").addEventListener("submit", (e) => {
   if (missing.length > 0) {
     missingWrap.appendChild(el("h3", null, "O que está faltando na sua ficha:"));
     const ul = el("ul");
-    missing.forEach((m) => ul.appendChild(el("li", null, m.missing)));
+    missing.forEach((m) => ul.appendChild(el("li", null, escapeHTML(m.missing))));
     missingWrap.appendChild(ul);
   }
 
-  const result = document.getElementById("gmb-result");
-  result.classList.remove("hidden");
-  result.scrollIntoView({ behavior: "smooth", block: "start" });
+  gmbResult.classList.remove("hidden");
+  gmbResult.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 /* ============================================================
-   FERRAMENTA 3 — SIMULADOR DE ROI DE TRÁFEGO PAGO
+   FERRAMENTA 3 — SIMULADOR DE ROI (Google + Meta)
 ============================================================ */
-document.getElementById("roi-form").addEventListener("submit", (e) => {
+document.querySelectorAll(".subtab").forEach((st) => {
+  st.addEventListener("click", () => {
+    document.querySelectorAll(".subtab").forEach((s) => s.classList.remove("active"));
+    st.classList.add("active");
+    document.getElementById("roi-google").classList.toggle("hidden", st.dataset.roi !== "google");
+    document.getElementById("roi-meta").classList.toggle("hidden", st.dataset.roi !== "meta");
+  });
+});
+
+function roasClass(roas) {
+  if (roas >= 3) return "good";
+  if (roas >= 1.5) return "mid";
+  return "bad";
+}
+
+function renderRoiCards(wrapId, cards) {
+  const wrap = document.getElementById(wrapId);
+  wrap.innerHTML = "";
+  cards.forEach((c) => {
+    const card = el("div", "metric-card" + (c.highlight ? " highlight" : ""));
+    card.appendChild(el("div", "m-label", c.label));
+    card.appendChild(el("div", "m-value" + (c.cls ? " " + c.cls : ""), c.value));
+    wrap.appendChild(card);
+  });
+  wrap.classList.remove("hidden");
+  document.getElementById("roi-disclaimer").classList.remove("hidden");
+}
+
+document.getElementById("roi-form-google").addEventListener("submit", (e) => {
   e.preventDefault();
-  const invest = parseFloat(document.getElementById("roi-invest").value);
-  const cpc = parseFloat(document.getElementById("roi-cpc").value);
-  const conv = parseFloat(document.getElementById("roi-conv").value) / 100;
-  const close = parseFloat(document.getElementById("roi-close").value) / 100;
-  const ticket = parseFloat(document.getElementById("roi-ticket").value);
+  const invest = parseFloat(document.getElementById("rg-invest").value);
+  const cpc = parseFloat(document.getElementById("rg-cpc").value);
+  const conv = parseFloat(document.getElementById("rg-conv").value) / 100;
+  const close = parseFloat(document.getElementById("rg-close").value) / 100;
+  const ticket = parseFloat(document.getElementById("rg-ticket").value);
 
   const clicks = invest / cpc;
   const leads = clicks * conv;
@@ -277,165 +459,255 @@ document.getElementById("roi-form").addEventListener("submit", (e) => {
   const cpa = sales > 0 ? invest / sales : 0;
   const roas = invest > 0 ? revenue / invest : 0;
 
-  let roasClass = "bad";
-  if (roas >= 3) roasClass = "good";
-  else if (roas >= 1.5) roasClass = "mid";
-
-  const cards = [
+  renderRoiCards("roi-results-google", [
     { label: "Cliques / mês", value: fmtNum.format(Math.round(clicks)) },
     { label: "Leads / mês", value: fmtNum.format(Math.round(leads)) },
     { label: "Vendas / mês", value: fmtNum.format(Math.round(sales)) },
-    { label: "Faturamento projetado", value: fmtBRL.format(revenue) },
+    { label: "Faturamento projetado", value: fmtBRL.format(revenue), highlight: true },
     { label: "Custo por venda (CPA)", value: fmtBRL.format(cpa) },
-    { label: "ROAS", value: fmtDec.format(roas) + "x", cls: roasClass },
-  ];
+    { label: "ROAS", value: fmtDec.format(roas) + "x", cls: roasClass(roas), highlight: true },
+  ]);
+});
 
-  const wrap = document.getElementById("roi-results");
-  wrap.innerHTML = "";
-  cards.forEach((c) => {
-    const card = el("div", "metric-card");
-    card.appendChild(el("div", "m-label", c.label));
-    card.appendChild(el("div", "m-value" + (c.cls ? " " + c.cls : ""), c.value));
-    wrap.appendChild(card);
-  });
+document.getElementById("roi-form-meta").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const invest = parseFloat(document.getElementById("rm-invest").value);
+  const cpm = parseFloat(document.getElementById("rm-cpm").value);
+  const ctr = parseFloat(document.getElementById("rm-ctr").value) / 100;
+  const conv = parseFloat(document.getElementById("rm-conv").value) / 100;
+  const close = parseFloat(document.getElementById("rm-close").value) / 100;
+  const ticket = parseFloat(document.getElementById("rm-ticket").value);
 
-  wrap.classList.remove("hidden");
-  document.getElementById("roi-disclaimer").classList.remove("hidden");
+  const impressions = (invest / cpm) * 1000;
+  const clicks = impressions * ctr;
+  const leads = clicks * conv;
+  const sales = leads * close;
+  const revenue = sales * ticket;
+  const cpa = sales > 0 ? invest / sales : 0;
+  const roas = invest > 0 ? revenue / invest : 0;
+
+  renderRoiCards("roi-results-meta", [
+    { label: "Impressões / mês", value: fmtNum.format(Math.round(impressions)) },
+    { label: "Cliques / mês", value: fmtNum.format(Math.round(clicks)) },
+    { label: "Leads / mês", value: fmtNum.format(Math.round(leads)) },
+    { label: "Vendas / mês", value: fmtNum.format(Math.round(sales)) },
+    { label: "Faturamento projetado", value: fmtBRL.format(revenue), highlight: true },
+    { label: "Custo por venda (CPA)", value: fmtBRL.format(cpa) },
+    { label: "ROAS", value: fmtDec.format(roas) + "x", cls: roasClass(roas), highlight: true },
+  ]);
 });
 
 /* ============================================================
-   FERRAMENTA 4 — GERADOR DE TÍTULO E META DESCRIPTION SEO
+   CONVERSORES
 ============================================================ */
-const TITLE_LIMIT = 60;
-const DESC_LIMIT = 160;
+const CONVERTERS = [
+  {
+    slug: "pdf-para-word", icon: "📄", title: "PDF → Word",
+    desc: "Transforme PDF em documento editável",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    handler: convertPdfToWord,
+  },
+  {
+    slug: "word-para-pdf", icon: "📝", title: "Word → PDF",
+    desc: "Converta .docx em PDF pronto para enviar",
+    accept: ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document", multiple: false,
+    dropText: "Arraste o arquivo .docx aqui ou clique para selecionar",
+    handler: convertWordToPdf,
+  },
+  {
+    slug: "imagem-para-pdf", icon: "🖼️", title: "Imagem → PDF",
+    desc: "JPG, PNG ou WebP viram um PDF (aceita várias)",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: true,
+    dropText: "Arraste as imagens aqui ou clique para selecionar (pode escolher várias)",
+    handler: convertImagesToPdf,
+  },
+  {
+    slug: "pdf-para-imagem", icon: "🎞️", title: "PDF → JPG",
+    desc: "Cada página do PDF vira uma imagem",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    handler: convertPdfToImages,
+  },
+  {
+    slug: "converter-imagem", icon: "🔁", title: "Converter imagem",
+    desc: "JPG ↔ PNG ↔ WebP em um clique",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    options: () => `
+      <label>Converter para
+        <select id="opt-img-format">
+          <option value="image/png">PNG</option>
+          <option value="image/jpeg">JPG</option>
+          <option value="image/webp">WebP</option>
+        </select>
+      </label>`,
+    handler: convertImageFormat,
+  },
+  {
+    slug: "comprimir-imagem", icon: "🗜️", title: "Comprimir imagem",
+    desc: "Reduza o tamanho de JPG e PNG sem perder qualidade visível",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    options: () => `
+      <label>Qualidade: <span id="opt-quality-val">70%</span>
+        <input type="range" id="opt-quality" min="30" max="95" value="70">
+      </label>`,
+    handler: compressImage,
+  },
+  {
+    slug: "juntar-pdf", icon: "📚", title: "Juntar PDFs",
+    desc: "Una vários PDFs em um único arquivo",
+    accept: "application/pdf,.pdf", multiple: true,
+    dropText: "Arraste 2 ou mais PDFs aqui (a ordem de seleção é a ordem final)",
+    handler: mergePdfs,
+  },
+  {
+    slug: "dividir-pdf", icon: "✂️", title: "Dividir PDF",
+    desc: "Extraia um intervalo de páginas do PDF",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    options: () => `
+      <label>Da página
+        <input type="number" id="opt-page-from" min="1" value="1">
+      </label>
+      <label>Até a página
+        <input type="number" id="opt-page-to" min="1" value="1">
+      </label>`,
+    handler: splitPdf,
+  },
+  {
+    slug: "excel-csv", icon: "📊", title: "Excel ↔ CSV",
+    desc: "Converta planilhas .xlsx em CSV e vice-versa",
+    accept: ".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv", multiple: false,
+    dropText: "Arraste a planilha (.xlsx, .xls) ou o .csv aqui",
+    handler: convertSpreadsheet,
+  },
+];
 
-function genItem(text, limit, container) {
-  const item = el("div", "gen-item");
-  const over = text.length > limit;
-  if (over) item.classList.add("over-limit");
+let activeConverter = null;
 
-  item.appendChild(el("span", "gen-text", text.replace(/</g, "&lt;")));
+const convGrid = document.getElementById("conv-grid");
+CONVERTERS.forEach((c) => {
+  const card = el("button", "conv-card");
+  card.type = "button";
+  card.innerHTML = `<span class="c-icon">${c.icon}</span><span class="c-title">${c.title}</span><span class="c-desc">${c.desc}</span>`;
+  card.addEventListener("click", () => { location.hash = "conversores/" + c.slug; });
+  convGrid.appendChild(card);
+});
 
-  const meta = el("div", "gen-meta");
-  meta.appendChild(
-    el("span", "char-count" + (over ? " over" : ""), text.length + "/" + limit)
-  );
-  const btn = el("button", "btn-copy", "Copiar");
-  btn.type = "button";
-  btn.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      btn.textContent = "Copiado ✓";
-      setTimeout(() => (btn.textContent = "Copiar"), 2000);
-    } catch {
-      btn.textContent = "Erro :(";
-      setTimeout(() => (btn.textContent = "Copiar"), 2000);
-    }
-  });
-  meta.appendChild(btn);
-  item.appendChild(meta);
+document.getElementById("conv-back").addEventListener("click", () => { location.hash = "conversores"; });
 
-  if (over) {
-    item.appendChild(
-      el("span", "gen-warning", "⚠️ Acima do limite ideal — o Google pode cortar o texto nos resultados.")
-    );
+function convReset() {
+  ["conv-status", "conv-error", "conv-done"].forEach((id) => document.getElementById(id).classList.add("hidden"));
+  document.getElementById("conv-done").innerHTML = "";
+}
+
+function showConverter(slug) {
+  const conv = CONVERTERS.find((c) => c.slug === slug);
+  activeConverter = conv || null;
+  document.getElementById("conv-hub").classList.toggle("hidden", !!conv);
+  document.getElementById("conv-page").classList.toggle("hidden", !conv);
+  if (!conv) return;
+
+  document.getElementById("conv-title").textContent = conv.icon + " " + conv.title;
+  document.getElementById("conv-desc").textContent = conv.desc + ".";
+  document.getElementById("conv-drop-text").innerHTML = "<strong>" + conv.dropText + "</strong>";
+
+  const input = document.getElementById("conv-input");
+  input.value = "";
+  input.accept = conv.accept;
+  input.multiple = !!conv.multiple;
+
+  const opts = document.getElementById("conv-options");
+  if (conv.options) {
+    opts.innerHTML = conv.options();
+    opts.classList.remove("hidden");
+    const q = document.getElementById("opt-quality");
+    if (q) q.addEventListener("input", () => {
+      document.getElementById("opt-quality-val").textContent = q.value + "%";
+    });
+  } else {
+    opts.innerHTML = "";
+    opts.classList.add("hidden");
   }
-  container.appendChild(item);
+  convReset();
 }
 
-document.getElementById("seo-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const name = document.getElementById("seo-name").value.trim();
-  const service = document.getElementById("seo-service").value.trim();
-  const city = document.getElementById("seo-city").value.trim();
-  const diff = document.getElementById("seo-diff").value.trim();
-
-  const titles = [
-    `${service} em ${city} | ${name}`,
-    `${name} — ${service} em ${city}`,
-    diff
-      ? `${service} em ${city}: ${diff} | ${name}`
-      : `${service} em ${city} com quem entende | ${name}`,
-  ];
-
-  const descs = [
-    `Procurando ${service.toLowerCase()} em ${city}? A ${name} oferece atendimento especializado${diff ? " com " + diff.toLowerCase() : ""}. Peça já seu orçamento!`,
-    `${name}: referência em ${service.toLowerCase()} em ${city}. ${diff ? diff + ". " : ""}Atendimento rápido e personalizado. Fale com a gente!`,
-    `Precisa de ${service.toLowerCase()}? Atendemos ${city} e região${diff ? " — " + diff.toLowerCase() : ""}. Conheça a ${name} e peça uma avaliação.`,
-  ];
-
-  const titlesWrap = document.getElementById("seo-titles");
-  const descsWrap = document.getElementById("seo-descs");
-  titlesWrap.innerHTML = "";
-  descsWrap.innerHTML = "";
-  titles.forEach((t) => genItem(t, TITLE_LIMIT, titlesWrap));
-  descs.forEach((d) => genItem(d, DESC_LIMIT, descsWrap));
-
-  const results = document.getElementById("seo-results");
-  results.classList.remove("hidden");
-  results.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-/* ============================================================
-   FERRAMENTA 5 — CONVERSOR PDF → WORD (100% client-side)
-============================================================ */
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+function convStatus(msg) {
+  const s = document.getElementById("conv-status");
+  s.textContent = msg;
+  s.classList.remove("hidden");
 }
 
-const dropzone = document.getElementById("pdf-drop");
-const pdfInput = document.getElementById("pdf-input");
-const pdfStatus = document.getElementById("pdf-status");
-const pdfError = document.getElementById("pdf-error");
-const pdfDone = document.getElementById("pdf-done");
-
-dropzone.addEventListener("click", () => pdfInput.click());
-dropzone.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") pdfInput.click();
-});
-dropzone.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  dropzone.classList.add("dragover");
-});
-dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
-dropzone.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropzone.classList.remove("dragover");
-  if (e.dataTransfer.files.length) handlePDF(e.dataTransfer.files[0]);
-});
-pdfInput.addEventListener("change", () => {
-  if (pdfInput.files.length) handlePDF(pdfInput.files[0]);
-});
-
-function escapeHTML(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function convError(msg) {
+  document.getElementById("conv-status").classList.add("hidden");
+  const e = document.getElementById("conv-error");
+  e.textContent = "⚠️ " + msg;
+  e.classList.remove("hidden");
 }
 
-/**
- * Agrupa os itens de texto de uma página por coordenada Y (linhas)
- * e junta linhas próximas em parágrafos.
- */
+function convDone(links, note) {
+  document.getElementById("conv-status").classList.add("hidden");
+  const done = document.getElementById("conv-done");
+  done.innerHTML = '<div class="done-banner">✅ Conversão concluída!' + (note ? " " + note : "") + "</div>";
+  const list = el("div", "file-list");
+  links.forEach(({ blob, filename, label }) => {
+    const a = el("a", "btn btn-primary");
+    a.textContent = label || "⬇️ Baixar " + filename;
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    list.appendChild(a);
+  });
+  done.appendChild(list);
+  done.classList.remove("hidden");
+}
+
+/* --- dropzone --- */
+const convDrop = document.getElementById("conv-drop");
+const convInput = document.getElementById("conv-input");
+convDrop.addEventListener("click", () => convInput.click());
+convDrop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") convInput.click(); });
+convDrop.addEventListener("dragover", (e) => { e.preventDefault(); convDrop.classList.add("dragover"); });
+convDrop.addEventListener("dragleave", () => convDrop.classList.remove("dragover"));
+convDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  convDrop.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleConvFiles([...e.dataTransfer.files]);
+});
+convInput.addEventListener("change", () => {
+  if (convInput.files.length) handleConvFiles([...convInput.files]);
+});
+
+async function handleConvFiles(files) {
+  if (!activeConverter) return;
+  convReset();
+  try {
+    await activeConverter.handler(files);
+  } catch (err) {
+    if (err && err.name === "PasswordException") {
+      convError("Este PDF está protegido por senha. Remova a senha e tente novamente.");
+    } else if (err && err.name === "InvalidPDFException") {
+      convError("Este arquivo está corrompido ou não é um PDF válido.");
+    } else {
+      convError(err && err.message ? err.message : "Não foi possível converter este arquivo. Tente outro.");
+    }
+  }
+}
+
+/* --- 1. PDF → Word --- */
 function pageItemsToParagraphs(items) {
-  // agrupa por Y (com tolerância de 3pt)
   const lines = [];
   items.forEach((item) => {
     if (!item.str) return;
     const y = item.transform[5];
     const x = item.transform[4];
     let line = lines.find((l) => Math.abs(l.y - y) < 3);
-    if (!line) {
-      line = { y, parts: [] };
-      lines.push(line);
-    }
+    if (!line) { line = { y, parts: [] }; lines.push(line); }
     line.parts.push({ x, str: item.str });
   });
-
-  // ordena linhas de cima para baixo e itens da esquerda para a direita
   lines.sort((a, b) => b.y - a.y);
   lines.forEach((l) => l.parts.sort((a, b) => a.x - b.x));
-
-  // agrupa linhas em parágrafos pela distância vertical
   const paragraphs = [];
   let current = [];
   let prevY = null;
@@ -453,80 +725,282 @@ function pageItemsToParagraphs(items) {
   return paragraphs;
 }
 
-async function handlePDF(file) {
-  pdfError.classList.add("hidden");
-  pdfDone.classList.add("hidden");
-  pdfStatus.classList.remove("hidden");
+async function convertPdfToWord(files) {
+  const file = files[0];
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") throw new Error("Escolha um arquivo .pdf.");
+  convStatus("Carregando leitor de PDF…");
+  await ensurePdfjs();
+  convStatus("Lendo arquivo…");
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
 
-  if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-    showPDFError("O arquivo selecionado não é um PDF. Escolha um arquivo .pdf.");
-    return;
+  let bodyHTML = "";
+  let totalChars = 0;
+  for (let p = 1; p <= pdf.numPages; p++) {
+    convStatus(`Convertendo página ${p} de ${pdf.numPages}…`);
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    pageItemsToParagraphs(content.items).forEach((para) => {
+      totalChars += para.length;
+      bodyHTML += "<p>" + escapeHTML(para) + "</p>\n";
+    });
+    if (p < pdf.numPages) bodyHTML += '<br clear="all" style="page-break-before:always">\n';
   }
-  if (!window.pdfjsLib) {
-    showPDFError("A biblioteca de leitura de PDF não carregou. Verifique sua conexão e recarregue a página.");
-    return;
+
+  if (totalChars < 20) {
+    throw new Error("Este PDF parece ser escaneado (imagem): não há texto extraível. Seria necessário OCR — fale com a gente que ajudamos!");
   }
 
-  try {
-    pdfStatus.textContent = "Lendo arquivo…";
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-
-    let bodyHTML = "";
-    let totalChars = 0;
-
-    for (let p = 1; p <= pdf.numPages; p++) {
-      pdfStatus.textContent = `Convertendo página ${p} de ${pdf.numPages}…`;
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const paragraphs = pageItemsToParagraphs(content.items);
-
-      paragraphs.forEach((para) => {
-        totalChars += para.length;
-        bodyHTML += "<p>" + escapeHTML(para) + "</p>\n";
-      });
-
-      if (p < pdf.numPages) {
-        bodyHTML += '<br clear="all" style="page-break-before:always">\n';
-      }
-    }
-
-    if (totalChars < 20) {
-      showPDFError(
-        "Este PDF parece ser escaneado (imagem): não há texto extraível nele. Para converter, seria necessário OCR — fale com a gente que ajudamos!"
-      );
-      return;
-    }
-
-    const docHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>${escapeHTML(file.name.replace(/\.pdf$/i, ""))}</title>
+  const docHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHTML(baseName(file.name))}</title>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
 <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.4}p{margin:0 0 10pt}</style>
 </head><body>
 ${bodyHTML}
 </body></html>`;
 
-    const blob = new Blob(["﻿", docHTML], { type: "application/msword" });
-    const link = document.getElementById("pdf-download");
-    if (link.href && link.href.startsWith("blob:")) URL.revokeObjectURL(link.href);
-    link.href = URL.createObjectURL(blob);
-    link.download = file.name.replace(/\.pdf$/i, "") + ".doc";
+  const blob = new Blob(["﻿", docHTML], { type: "application/msword" });
+  convDone([{ blob, filename: baseName(file.name) + ".doc", label: "⬇️ Baixar Word (.doc)" }]);
+}
 
-    pdfStatus.classList.add("hidden");
-    pdfDone.classList.remove("hidden");
-  } catch (err) {
-    if (err && err.name === "PasswordException") {
-      showPDFError("Este PDF está protegido por senha. Remova a senha do arquivo e tente novamente.");
-    } else if (err && err.name === "InvalidPDFException") {
-      showPDFError("Este arquivo está corrompido ou não é um PDF válido.");
-    } else {
-      showPDFError("Não foi possível converter este PDF. Tente outro arquivo.");
-    }
+/* --- 2. Word → PDF --- */
+async function convertWordToPdf(files) {
+  const file = files[0];
+  if (!/\.docx$/i.test(file.name)) throw new Error("Escolha um arquivo .docx (Word moderno). Arquivos .doc antigos não são suportados.");
+  convStatus("Carregando conversor…");
+  await loadScript(LIB.mammoth);
+  await loadScript(LIB.html2pdf);
+  convStatus("Lendo documento…");
+  const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+  const html = (result.value || "").trim();
+  if (!html) throw new Error("Não foi possível extrair o conteúdo deste documento.");
+
+  convStatus("Gerando PDF…");
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  Object.assign(container.style, {
+    position: "fixed", left: "-10000px", top: "0", width: "700px",
+    background: "#fff", color: "#111", fontFamily: "Arial, sans-serif",
+    fontSize: "13px", lineHeight: "1.5", padding: "20px",
+  });
+  container.querySelectorAll("img").forEach((img) => { img.style.maxWidth = "100%"; });
+  document.body.appendChild(container);
+  try {
+    const blob = await html2pdf().set({
+      margin: 12,
+      filename: baseName(file.name) + ".pdf",
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+    }).from(container).outputPdf("blob");
+    convDone([{ blob, filename: baseName(file.name) + ".pdf", label: "⬇️ Baixar PDF" }]);
+  } finally {
+    container.remove();
   }
 }
 
-function showPDFError(msg) {
-  pdfStatus.classList.add("hidden");
-  pdfError.textContent = "⚠️ " + msg;
-  pdfError.classList.remove("hidden");
+/* --- helpers de imagem --- */
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Não foi possível ler esta imagem."));
+    img.src = URL.createObjectURL(file);
+  });
 }
+
+function canvasFromImage(img, fillWhite) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (fillWhite) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  ctx.drawImage(img, 0, 0);
+  return canvas;
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha na conversão da imagem."))), type, quality);
+  });
+}
+
+/* --- 3. Imagem → PDF --- */
+async function convertImagesToPdf(files) {
+  const imgs = files.filter((f) => /image\/(jpeg|png|webp)/.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name));
+  if (!imgs.length) throw new Error("Escolha imagens JPG, PNG ou WebP.");
+  convStatus("Carregando gerador de PDF…");
+  await loadScript(LIB.pdflib);
+  const { PDFDocument } = PDFLib;
+  const pdfDoc = await PDFDocument.create();
+
+  for (let i = 0; i < imgs.length; i++) {
+    convStatus(`Adicionando imagem ${i + 1} de ${imgs.length}…`);
+    const f = imgs[i];
+    let bytes, embedded;
+    if (f.type === "image/webp" || /\.webp$/i.test(f.name)) {
+      const img = await loadImageFile(f);
+      const blob = await canvasToBlob(canvasFromImage(img, true), "image/jpeg", 0.92);
+      bytes = await blob.arrayBuffer();
+      embedded = await pdfDoc.embedJpg(bytes);
+    } else if (f.type === "image/png" || /\.png$/i.test(f.name)) {
+      bytes = await f.arrayBuffer();
+      embedded = await pdfDoc.embedPng(bytes);
+    } else {
+      bytes = await f.arrayBuffer();
+      embedded = await pdfDoc.embedJpg(bytes);
+    }
+    const page = pdfDoc.addPage([embedded.width, embedded.height]);
+    page.drawImage(embedded, { x: 0, y: 0, width: embedded.width, height: embedded.height });
+  }
+
+  const out = await pdfDoc.save();
+  const name = imgs.length === 1 ? baseName(imgs[0].name) + ".pdf" : "imagens.pdf";
+  convDone([{ blob: new Blob([out], { type: "application/pdf" }), filename: name, label: "⬇️ Baixar PDF" }]);
+}
+
+/* --- 4. PDF → JPG --- */
+async function convertPdfToImages(files) {
+  const file = files[0];
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") throw new Error("Escolha um arquivo .pdf.");
+  convStatus("Carregando leitor de PDF…");
+  await ensurePdfjs();
+  convStatus("Lendo arquivo…");
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+
+  const maxPages = Math.min(pdf.numPages, 30);
+  const links = [];
+  for (let p = 1; p <= maxPages; p++) {
+    convStatus(`Renderizando página ${p} de ${maxPages}…`);
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport, intent: "print" }).promise;
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.9);
+    links.push({ blob, filename: `${baseName(file.name)}-pagina-${p}.jpg`, label: `⬇️ Página ${p} (JPG)` });
+  }
+  convDone(links, pdf.numPages > 30 ? "(limite de 30 páginas por vez)" : "");
+}
+
+/* --- 5. Converter imagem --- */
+async function convertImageFormat(files) {
+  const file = files[0];
+  const format = document.getElementById("opt-img-format").value;
+  const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[format];
+  convStatus("Convertendo…");
+  const img = await loadImageFile(file);
+  const blob = await canvasToBlob(canvasFromImage(img, format === "image/jpeg"), format, 0.92);
+  convDone([{ blob, filename: baseName(file.name) + "." + ext, label: "⬇️ Baixar ." + ext.toUpperCase() }]);
+}
+
+/* --- 6. Comprimir imagem --- */
+async function compressImage(files) {
+  const file = files[0];
+  const quality = parseInt(document.getElementById("opt-quality").value, 10) / 100;
+  convStatus("Comprimindo…");
+  const img = await loadImageFile(file);
+  const blob = await canvasToBlob(canvasFromImage(img, true), "image/jpeg", quality);
+  const before = (file.size / 1024).toFixed(0);
+  const after = (blob.size / 1024).toFixed(0);
+  const saved = file.size > 0 ? Math.max(0, Math.round((1 - blob.size / file.size) * 100)) : 0;
+  convDone(
+    [{ blob, filename: baseName(file.name) + "-comprimida.jpg", label: "⬇️ Baixar imagem comprimida" }],
+    `${before} KB → ${after} KB (−${saved}%)`
+  );
+}
+
+/* --- 7. Juntar PDFs --- */
+async function mergePdfs(files) {
+  const pdfs = files.filter((f) => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
+  if (pdfs.length < 2) throw new Error("Selecione pelo menos 2 PDFs para juntar.");
+  convStatus("Carregando…");
+  await loadScript(LIB.pdflib);
+  const { PDFDocument } = PDFLib;
+  const merged = await PDFDocument.create();
+  for (let i = 0; i < pdfs.length; i++) {
+    convStatus(`Juntando arquivo ${i + 1} de ${pdfs.length}…`);
+    let src;
+    try {
+      src = await PDFDocument.load(await pdfs[i].arrayBuffer(), { ignoreEncryption: false });
+    } catch {
+      throw new Error(`O arquivo "${pdfs[i].name}" está protegido ou corrompido.`);
+    }
+    const pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach((pg) => merged.addPage(pg));
+  }
+  const out = await merged.save();
+  convDone([{ blob: new Blob([out], { type: "application/pdf" }), filename: "unido.pdf", label: "⬇️ Baixar PDF unido" }]);
+}
+
+/* --- 8. Dividir PDF --- */
+async function splitPdf(files) {
+  const file = files[0];
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") throw new Error("Escolha um arquivo .pdf.");
+  convStatus("Carregando…");
+  await loadScript(LIB.pdflib);
+  const { PDFDocument } = PDFLib;
+  let src;
+  try {
+    src = await PDFDocument.load(await file.arrayBuffer());
+  } catch {
+    throw new Error("Este PDF está protegido por senha ou corrompido.");
+  }
+  const total = src.getPageCount();
+  const from = Math.max(1, parseInt(document.getElementById("opt-page-from").value, 10) || 1);
+  const to = Math.min(total, parseInt(document.getElementById("opt-page-to").value, 10) || total);
+  if (from > to) throw new Error(`Intervalo inválido. O PDF tem ${total} página(s).`);
+
+  convStatus(`Extraindo páginas ${from} a ${to} de ${total}…`);
+  const outDoc = await PDFDocument.create();
+  const idx = [];
+  for (let i = from - 1; i <= to - 1; i++) idx.push(i);
+  const pages = await outDoc.copyPages(src, idx);
+  pages.forEach((pg) => outDoc.addPage(pg));
+  const out = await outDoc.save();
+  convDone([{
+    blob: new Blob([out], { type: "application/pdf" }),
+    filename: `${baseName(file.name)}-pag-${from}-a-${to}.pdf`,
+    label: `⬇️ Baixar páginas ${from}–${to}`,
+  }]);
+}
+
+/* --- 9. Excel ↔ CSV --- */
+async function convertSpreadsheet(files) {
+  const file = files[0];
+  const isCsv = /\.csv$/i.test(file.name);
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+  if (!isCsv && !isExcel) throw new Error("Escolha um arquivo .xlsx, .xls ou .csv.");
+  convStatus("Carregando conversor de planilhas…");
+  await loadScript(LIB.xlsx);
+  convStatus("Convertendo…");
+
+  if (isExcel) {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const links = wb.SheetNames.map((sheetName) => {
+      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName], { FS: ";" });
+      const suffix = wb.SheetNames.length > 1 ? "-" + sheetName : "";
+      return {
+        blob: new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }),
+        filename: baseName(file.name) + suffix + ".csv",
+        label: "⬇️ Baixar CSV" + (wb.SheetNames.length > 1 ? ` (aba: ${sheetName})` : ""),
+      };
+    });
+    convDone(links);
+  } else {
+    const text = await file.text();
+    const wb = XLSX.read(text, { type: "string", FS: text.includes(";") ? ";" : "," });
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    convDone([{
+      blob: new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+      filename: baseName(file.name) + ".xlsx",
+      label: "⬇️ Baixar Excel (.xlsx)",
+    }]);
+  }
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+============================================================ */
+route();
