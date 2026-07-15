@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mozar Marketing Hub Tools — Ferramentas gratuitas de marketing digital</title>
+  <meta name="description" content="Ferramentas gratuitas de marketing digital: teste de velocidade e SEO, diagnóstico do Google Meu Negócio, simulador de ROI de tráfego pago e conversor PDF para Word.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Mozar Marketing Hub Tools — Ferramentas gratuitas de marketing digital">
+  <meta property="og:description" content="Teste a velocidade do seu site, diagnostique sua ficha do Google, simule o ROI do tráfego pago, gere títulos SEO e converta PDF em Word. Grátis.">
+  <meta property="og:site_name" content="Mozar Marketing Hub">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:image" content="logo.png">
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Mozar Marketing Hub Tools",
+    "description": "Ferramentas gratuitas de marketing digital: análise de velocidade e SEO, diagnóstico do Google Meu Negócio, simulador de ROI de tráfego pago, gerador de títulos SEO e conversor PDF para Word.",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "pt-BR",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "BRL"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Consig Invest Marketing Digital"
+    }
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo.png" alt="Logo Mozar Marketing Hub" class="brand-logo" onerror="this.style.display='none'">
+        <div class="brand-text">
+          <span class="brand-name">MOZAR <span class="brand-slash">//</span> MARKETING HUB</span>
+          <span class="brand-sub">FERRAMENTAS GRATUITAS</span>
+        </div>
+      </div>
+      <a id="header-whats" class="btn btn-header" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.9.9-1.1 2.1-.2 3.7a12 12 0 0 0 4.6 4.2c1.7.8 2.4.8 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2-.1-.1-.2-.1-.5-.3Z"/></svg>
+        Falar com especialista
+      </a>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Ferramentas">
+    <button class="tab active" role="tab" aria-selected="true" data-tab="speed">⚡ Velocidade &amp; SEO</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="gmb">📍 Google Meu Negócio</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="roi">📈 ROI Tráfego Pago</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="seo">✍️ Título &amp; Meta SEO</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="pdf">📄 PDF → Word</button>
+  </nav>
+
+  <main class="container">
+
+    <!-- ============ FERRAMENTA 1: VELOCIDADE & SEO ============ -->
+    <section id="panel-speed" class="panel active" role="tabpanel">
+      <h1>Análise de Velocidade &amp; SEO</h1>
+      <p class="lead">Descubra em segundos se o seu site está rápido e otimizado para o Google. Sites lentos perdem visitantes — e clientes.</p>
+
+      <form id="speed-form" class="tool-form">
+        <div class="field-row">
+          <input type="url" id="speed-url" placeholder="https://seusite.com.br" required inputmode="url" autocomplete="url">
+          <button type="submit" id="speed-btn" class="btn btn-primary">Analisar site</button>
+        </div>
+        <p class="hint">A análise usa dados reais do Google e pode levar até 40 segundos.</p>
+      </form>
+
+      <div id="speed-error" class="alert hidden"></div>
+
+      <div id="speed-results" class="hidden">
+        <div class="gauges">
+          <div class="gauge-card">
+            <div id="gauge-perf"></div>
+            <span class="gauge-label">Performance (mobile)</span>
+          </div>
+          <div class="gauge-card">
+            <div id="gauge-seo"></div>
+            <span class="gauge-label">SEO</span>
+          </div>
+        </div>
+
+        <div class="metric-cards" id="speed-metrics"></div>
+
+        <div id="speed-opps-wrap">
+          <h2>Principais oportunidades de melhoria</h2>
+          <ul id="speed-opps" class="opps-list"></ul>
+        </div>
+      </div>
+
+      <div class="cta-block">
+        <h3>Seu site pode estar afugentando clientes 😬</h3>
+        <p>A cada segundo de demora, você perde visitantes que vão direto para o concorrente. Nossa equipe faz uma auditoria completa e corrige o que está travando seu site.</p>
+        <a class="btn btn-primary cta-whats" data-msg="Olá! Fiz o teste de velocidade e SEO no Mozar Marketing Hub e quero a auditoria completa do meu site." href="#" target="_blank" rel="noopener">💬 Quero a auditoria completa</a>
+      </div>
+    </section>
+
+    <!-- ============ FERRAMENTA 2: GOOGLE MEU NEGÓCIO ============ -->
+    <section id="panel-gmb" class="panel" role="tabpanel">
+      <h1>Diagnóstico Google Meu Negócio</h1>
+      <p class="lead">Responda 10 perguntas rápidas e descubra se a sua empresa está aparecendo quando alguém procura pelo seu serviço no Google.</p>
+
+      <form id="gmb-form" class="tool-form">
+        <ol id="gmb-questions" class="quiz"></ol>
+        <button type="submit" class="btn btn-primary">Ver meu diagnóstico</button>
+      </form>
+
+      <div id="gmb-result" class="hidden">
+        <div id="gmb-status" class="result-banner"></div>
+        <div id="gmb-missing" class="missing-list"></div>
+      </div>
+
+      <div class="cta-block">
+        <h3>Sua ficha do Google é sua vitrine 24h</h3>
+        <p>Empresas com ficha otimizada recebem até 7x mais ligações. Enquanto a sua está incompleta, o telefone que toca é o do concorrente.</p>
+        <a class="btn btn-primary cta-whats" data-msg="Olá! Fiz o diagnóstico do Google Meu Negócio no Mozar Marketing Hub e quero otimizar minha ficha para aparecer no Google." href="#" target="_blank" rel="noopener">💬 Quero aparecer no Google</a>
+      </div>
+    </section>
+
+    <!-- ============ FERRAMENTA 3: ROI TRÁFEGO PAGO ============ -->
+    <section id="panel-roi" class="panel" role="tabpanel">
+      <h1>Simulador de ROI de Tráfego Pago</h1>
+      <p class="lead">Simule quanto o seu negócio pode faturar investindo em anúncios no Google e Meta.</p>
+
+      <form id="roi-form" class="tool-form roi-grid">
+        <label>Investimento mensal (R$)
+          <input type="number" id="roi-invest" min="1" step="any" value="3000" required>
+        </label>
+        <label>CPC médio (R$)
+          <input type="number" id="roi-cpc" min="0.01" step="any" value="2.50" required>
+        </label>
+        <label>Conversão do site (%)
+          <input type="number" id="roi-conv" min="0.01" max="100" step="any" value="5" required>
+        </label>
+        <label>Taxa de fechamento (%)
+          <input type="number" id="roi-close" min="0.01" max="100" step="any" value="30" required>
+        </label>
+        <label>Ticket médio (R$)
+          <input type="number" id="roi-ticket" min="0.01" step="any" value="500" required>
+        </label>
+        <button type="submit" class="btn btn-primary">Calcular projeção</button>
+      </form>
+
+      <div id="roi-results" class="metric-cards hidden"></div>
+      <p id="roi-disclaimer" class="disclaimer hidden">* Projeção estimada. Os resultados reais dependem da segmentação, dos criativos e da qualidade da página de destino.</p>
+
+      <div class="cta-block">
+        <h3>Números bons no papel só viram dinheiro com gestão profissional</h3>
+        <p>Campanha mal configurada queima verba. Nossa equipe gerencia tráfego pago com foco em retorno — você acompanha cada real investido.</p>
+        <a class="btn btn-primary cta-whats" data-msg="Olá! Usei o simulador de ROI de tráfego pago no Mozar Marketing Hub e quero uma proposta de gestão de anúncios." href="#" target="_blank" rel="noopener">💬 Quero anunciar com especialistas</a>
+      </div>
+    </section>
+
+    <!-- ============ FERRAMENTA 4: TÍTULO & META SEO ============ -->
+    <section id="panel-seo" class="panel" role="tabpanel">
+      <h1>Gerador de Título e Meta Description SEO</h1>
+      <p class="lead">Crie títulos e descrições otimizados para o Google em segundos — prontos para copiar e colar no seu site.</p>
+
+      <form id="seo-form" class="tool-form roi-grid">
+        <label>Nome do negócio
+          <input type="text" id="seo-name" placeholder="Clínica Sorriso" required>
+        </label>
+        <label>Serviço principal
+          <input type="text" id="seo-service" placeholder="Implante dentário" required>
+        </label>
+        <label>Cidade
+          <input type="text" id="seo-city" placeholder="Porto Alegre" required>
+        </label>
+        <label>Diferencial (opcional)
+          <input type="text" id="seo-diff" placeholder="Avaliação gratuita">
+        </label>
+        <button type="submit" class="btn btn-primary">Gerar sugestões</button>
+      </form>
+
+      <div id="seo-results" class="hidden">
+        <h2>Títulos (ideal até 60 caracteres)</h2>
+        <div id="seo-titles"></div>
+        <h2>Meta descriptions (ideal até 160 caracteres)</h2>
+        <div id="seo-descs"></div>
+      </div>
+
+      <div class="cta-block">
+        <h3>Título bom atrai clique. SEO completo atrai cliente.</h3>
+        <p>Isso é só a ponta do iceberg: estrutura, conteúdo, autoridade e velocidade também decidem quem aparece em 1º no Google. A gente cuida de tudo.</p>
+        <a class="btn btn-primary cta-whats" data-msg="Olá! Usei o gerador de títulos SEO no Mozar Marketing Hub e quero otimizar o SEO completo do meu site." href="#" target="_blank" rel="noopener">💬 Quero SEO completo</a>
+      </div>
+    </section>
+
+    <!-- ============ FERRAMENTA 5: PDF → WORD ============ -->
+    <section id="panel-pdf" class="panel" role="tabpanel">
+      <h1>Conversor PDF → Word</h1>
+      <p class="lead">Converta PDF em documento Word direto no navegador. <strong>🔒 Seu arquivo não sai do seu computador</strong> — a conversão acontece 100% aqui, sem upload para nenhum servidor.</p>
+
+      <div id="pdf-drop" class="dropzone" tabindex="0" role="button" aria-label="Selecionar arquivo PDF">
+        <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <p><strong>Arraste o PDF aqui</strong> ou clique para selecionar</p>
+        <input type="file" id="pdf-input" accept="application/pdf,.pdf" hidden>
+      </div>
+
+      <div id="pdf-status" class="hidden"></div>
+      <div id="pdf-error" class="alert hidden"></div>
+      <div id="pdf-done" class="hidden">
+        <div class="result-banner ok">✅ Conversão concluída!</div>
+        <a id="pdf-download" class="btn btn-primary" download>⬇️ Baixar arquivo Word (.doc)</a>
+      </div>
+
+      <div class="cta-block">
+        <h3>Gostou das ferramentas gratuitas?</h3>
+        <p>Imagine o que a gente faz com o marketing da sua empresa. Sites, tráfego pago, SEO e automação — tudo focado em gerar clientes.</p>
+        <a class="btn btn-primary cta-whats" data-msg="Olá! Usei o conversor PDF para Word no Mozar Marketing Hub e quero conhecer os serviços de marketing digital da Consig Invest." href="#" target="_blank" rel="noopener">💬 Conhecer os serviços</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>Mozar Marketing Hub — ferramentas gratuitas da <strong>Consig Invest Marketing Digital</strong>.</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
