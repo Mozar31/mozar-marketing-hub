@@ -2,7 +2,7 @@
 
 const WHATSAPP = "5551983493659";
 const PAGESPEED_KEY = "AIzaSyCE2W5SN58BNxlE_q7FOqpqz89wKCRmAkY"; // chave gratuita da API PageSpeed (restrita ao domínio hub.consiginvest.com)
-const GMB_RESOLVER = "https://dinastia-n8n-webhook.u9dep8.easypanel.host/webhook/gmb-resolve";
+const GMB_ANALYZE = "https://dinastia-n8n-webhook.u9dep8.easypanel.host/webhook/gmb-analyze";
 
 /* ============================================================
    NAVEGAÇÃO (abas + rotas por hash)
@@ -383,65 +383,123 @@ speedForm.addEventListener("submit", async (e) => {
 });
 
 /* ============================================================
-   FERRAMENTA 2 — ANÁLISE DA FICHA DO GOOGLE (link do Maps)
+   FERRAMENTA 2 — ANÁLISE AUTOMÁTICA DA FICHA DO GOOGLE
 ============================================================ */
-const GMB_QUESTIONS = [
-  { q: "A ficha foi reivindicada e você tem acesso de administrador?", missing: "Reivindicar a propriedade da ficha" },
-  { q: "O telefone cadastrado está correto e atende?", missing: "Corrigir o telefone de contato" },
-  { q: "Os horários de funcionamento estão preenchidos e atualizados?", missing: "Atualizar os horários de funcionamento" },
-  { q: "A ficha tem 10 ou mais fotos reais do negócio?", missing: "Adicionar pelo menos 10 fotos reais" },
-  { q: "Existe uma descrição completa da empresa na ficha?", missing: "Escrever a descrição da empresa" },
-  { q: "Os serviços estão cadastrados no menu de serviços?", missing: "Cadastrar o menu de serviços" },
-  { q: "Você publica posts ou novidades pelo menos 1x por mês?", missing: "Publicar posts mensais na ficha" },
-  { q: "Você responde às avaliações dos clientes?", missing: "Responder às avaliações recebidas" },
-  { q: "A ficha tem o link do seu site cadastrado?", missing: "Adicionar o link do site na ficha" },
-];
-
 const gmbForm = document.getElementById("gmb-form");
 const gmbBtn = document.getElementById("gmb-btn");
 const gmbError = document.getElementById("gmb-error");
-const gmbChecklist = document.getElementById("gmb-checklist");
 const gmbResult = document.getElementById("gmb-result");
-
-function parseMapsUrl(raw) {
-  // extrai o nome da ficha de uma URL completa do Google Maps
-  const m = raw.match(/\/maps\/place\/([^\/@?]+)/);
-  if (!m) return null;
-  try {
-    return decodeURIComponent(m[1].replace(/\+/g, " "));
-  } catch {
-    return m[1].replace(/\+/g, " ");
-  }
-}
 
 function isMapsLink(raw) {
   return /(?:google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
 }
 
-function buildChecklist(businessName) {
-  const found = document.getElementById("gmb-found");
-  found.innerHTML = businessName
-    ? "✅ Ficha encontrada no Google: <strong>" + escapeHTML(businessName) + "</strong>" +
-      '<span class="result-detail">Ótimo — sua empresa existe no Google Maps. Agora vamos medir a força dessa ficha.</span>'
-    : "✅ Link recebido!" +
-      '<span class="result-detail">Agora vamos medir a força da sua ficha.</span>';
-
-  const list = document.getElementById("gmb-questions");
-  list.innerHTML = "";
-  GMB_QUESTIONS.forEach((item, i) => {
-    const li = el("li");
-    li.appendChild(el("span", "q-text", escapeHTML(item.q)));
-    const opts = el("div", "q-opts");
-    opts.innerHTML = `
-      <label><input type="radio" name="gmb-q${i}" value="1"> Sim</label>
-      <label><input type="radio" name="gmb-q${i}" value="0"> Não</label>`;
-    li.appendChild(opts);
-    list.appendChild(li);
-  });
-
+function gmbShowError(html, withCta) {
   gmbResult.classList.add("hidden");
-  gmbChecklist.classList.remove("hidden");
-  gmbChecklist.scrollIntoView({ behavior: "smooth", block: "start" });
+  gmbError.innerHTML =
+    "⚠️ " + html +
+    (withCta
+      ? `<br><a class="btn btn-primary" style="margin-top:12px" target="_blank" rel="noopener" href="${waLink("Olá, vim através do Hub da Consig Invest! Tentei analisar minha ficha do Google e quero falar com um especialista.")}">💬 Falar com especialista</a>`
+      : "");
+  gmbError.classList.remove("hidden");
+}
+
+const fmtNota = (n) => String(n).replace(".", ",");
+
+function renderGmbDiagnosis(d) {
+  // ----- problemas (com frase de impacto) -----
+  const problems = [];
+  if (d.status_negocio && d.status_negocio !== "OPERATIONAL") {
+    problems.push({
+      t: "🚨 Ficha marcada como " + (d.status_negocio === "CLOSED_PERMANENTLY" ? "FECHADA PERMANENTEMENTE" : "fechada temporariamente"),
+      i: "Para o Google, sua empresa não está operando — ninguém é direcionado para você. Corrigir isso é prioridade absoluta.",
+    });
+  }
+  if (!d.telefone) problems.push({ t: "Sem telefone cadastrado", i: "Cliente que não acha telefone liga para o concorrente." });
+  if (!d.site) problems.push({ t: "Sem site vinculado", i: "O Google rebaixa fichas sem site nas buscas locais." });
+  if (!d.horarios_cadastrados || d.dias_com_horario < 7) {
+    problems.push({
+      t: d.horarios_cadastrados ? `Horários em só ${d.dias_com_horario} dia(s) da semana` : "Sem horários cadastrados",
+      i: "Ficha sem horário completo perde o selo 'Aberto agora' — filtro que muita gente usa.",
+    });
+  }
+  if (d.qtd_fotos < 10) {
+    problems.push({
+      t: d.qtd_fotos === 0 ? "Nenhuma foto publicada" : `Poucas fotos (${d.qtd_fotos})`,
+      i: "Fichas com 10+ fotos recebem muito mais cliques e pedidos de rota.",
+    });
+  }
+  if (d.total_avaliacoes < 20) {
+    problems.push({
+      t: d.total_avaliacoes === 0 ? "Nenhuma avaliação" : `Poucas avaliações (${d.total_avaliacoes})`,
+      i: "Poucas avaliações = pouca confiança; concorrente com mais avaliações aparece na frente.",
+    });
+  }
+  if (d.nota !== null && d.nota < 4.0) {
+    problems.push({ t: `Nota ${fmtNota(d.nota)}`, i: "Nota abaixo de 4 afasta clientes antes mesmo de te conhecerem." });
+  } else if (d.nota !== null && d.nota < 4.5) {
+    problems.push({ t: `Nota ${fmtNota(d.nota)}`, i: "Nota boa, mas em busca local 4.5+ é o corte de muitos clientes." });
+  }
+
+  // ----- pontos fortes (máx. 3) -----
+  const strengths = [];
+  if (d.nota !== null && d.nota >= 4.5 && d.total_avaliacoes >= 20) strengths.push(`Nota ${fmtNota(d.nota)} com ${d.total_avaliacoes} avaliações — acima da média`);
+  if (d.telefone) strengths.push("Telefone cadastrado");
+  if (d.site) strengths.push("Site vinculado à ficha");
+  if (d.dias_com_horario >= 7) strengths.push("Horários completos");
+  if (d.qtd_fotos >= 10) strengths.push(`${d.qtd_fotos}${d.qtd_fotos >= 10 ? "+" : ""} fotos publicadas`);
+  const topStrengths = strengths.slice(0, 3);
+  if (topStrengths.length === 0) topStrengths.push("Sua ficha existe — esse é o primeiro passo");
+
+  // ----- status geral -----
+  let title, detail;
+  if (problems.length >= 5) {
+    title = "🚨 Ficha extremamente incompleta";
+    detail = "Com esse nível de cadastro, o Google quase não mostra sua empresa. Você <strong>não está aparecendo</strong> nas buscas locais e está perdendo ligações, clientes e faturamento para concorrentes com fichas completas.";
+  } else if (problems.length >= 2) {
+    title = "⚠️ Parcialmente cadastrada";
+    detail = "Sua ficha existe, mas está longe do potencial. O Google prioriza fichas completas e ativas — na prática, você <strong>ainda não está aparecendo</strong> nas primeiras posições e os clientes que procuram seu serviço estão ligando para o concorrente.";
+  } else {
+    title = "⚠️ Boa base — falta acelerar";
+    detail = "Sua ficha está bem cadastrada, mas <strong>ficha sozinha não segura posição</strong>: seus concorrentes investem em SEO local e Google Ads para aparecer antes de você. Esse é o próximo nível — sem ele, parte das ligações e do faturamento continua indo para eles.";
+  }
+
+  document.getElementById("gmb-status").innerHTML = title + '<span class="result-detail">' + detail + "</span>";
+
+  // ----- cabeçalho da empresa -----
+  const emp = document.getElementById("gmb-empresa");
+  emp.innerHTML =
+    `<strong>${escapeHTML(d.nome || "Sua empresa")}</strong>` +
+    (d.categoria ? ` · ${escapeHTML(d.categoria)}` : "") +
+    (d.endereco ? `<br><span>${escapeHTML(d.endereco)}</span>` : "");
+
+  // ----- render pontos fortes -----
+  const sList = document.getElementById("gmb-strengths-list");
+  sList.innerHTML = "";
+  topStrengths.forEach((s) => sList.appendChild(el("li", null, escapeHTML(s))));
+  document.getElementById("gmb-strengths").classList.remove("hidden");
+
+  // ----- render problemas -----
+  const pWrap = document.getElementById("gmb-problems");
+  const pList = document.getElementById("gmb-problems-list");
+  pList.innerHTML = "";
+  if (problems.length > 0) {
+    problems.forEach((p) => {
+      pList.appendChild(el("li", null, `<strong>${escapeHTML(p.t)}</strong><br><span class="p-impact">${escapeHTML(p.i)}</span>`));
+    });
+    pWrap.classList.remove("hidden");
+  } else {
+    pWrap.classList.add("hidden");
+  }
+
+  // ----- CTA com o nome da empresa -----
+  document.getElementById("gmb-cta").href = waLink(
+    `Analisei a ficha da ${d.nome || "minha empresa"} no Hub e quero melhorar meu posicionamento no Google`
+  );
+
+  gmbError.classList.add("hidden");
+  gmbResult.classList.remove("hidden");
+  gmbResult.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 gmbForm.addEventListener("submit", async (e) => {
@@ -450,82 +508,58 @@ gmbForm.addEventListener("submit", async (e) => {
   gmbError.classList.add("hidden");
 
   if (!isMapsLink(raw)) {
-    gmbError.innerHTML =
-      "⚠️ Este não parece ser um link do Google Maps. Abra sua empresa no Maps, toque em <strong>Compartilhar → Copiar link</strong> e cole aqui.";
-    gmbError.classList.remove("hidden");
+    gmbShowError("Esse link não parece ser do Google Maps. Abra sua empresa no Maps → <strong>Compartilhar</strong> → <strong>Copiar link</strong>.", false);
     return;
   }
 
-  // URL completa: dá pra extrair o nome sem sair do navegador
-  let name = parseMapsUrl(raw);
+  gmbBtn.disabled = true;
+  gmbBtn.innerHTML = '<span class="spinner"></span> Analisando ficha…';
 
-  if (!name) {
-    // link curto: resolve pelo webhook
-    gmbBtn.disabled = true;
-    gmbBtn.innerHTML = '<span class="spinner"></span> Verificando ficha…';
-    try {
-      const res = await fetch(GMB_RESOLVER + "?url=" + encodeURIComponent(raw));
-      if (res.ok) {
-        const data = await res.json();
-        if (data.ok && data.name) name = data.name;
-      }
-    } catch {
-      /* segue sem nome — o checklist ainda funciona */
-    } finally {
-      gmbBtn.disabled = false;
-      gmbBtn.textContent = "Analisar ficha";
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(GMB_ANALYZE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ link: raw }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+
+    if (data.error === "link_invalido") {
+      gmbShowError("Esse link não parece ser do Google Maps. Abra sua empresa no Maps → <strong>Compartilhar</strong> → <strong>Copiar link</strong>.", false);
+    } else if (data.error === "ficha_nao_encontrada") {
+      gmbShowError("Não encontramos essa ficha. Confira o link ou fale com um especialista.", true);
+    } else if (data.error === "limite_diario") {
+      gmbShowError("<strong>Alta demanda hoje!</strong> Tente amanhã ou fale direto com um especialista.", true);
+    } else if (data.error) {
+      gmbShowError("Ferramenta indisponível no momento.", true);
+    } else if (data.nome || data.place_id) {
+      renderGmbDiagnosis(data);
+    } else {
+      gmbShowError("Ferramenta indisponível no momento.", true);
     }
+  } catch {
+    gmbShowError("Ferramenta indisponível no momento.", true);
+  } finally {
+    gmbBtn.disabled = false;
+    gmbBtn.textContent = "Analisar ficha";
   }
-
-  buildChecklist(name);
 });
 
 document.getElementById("gmb-no-listing").addEventListener("click", () => {
-  gmbChecklist.classList.add("hidden");
-  const banner = document.getElementById("gmb-status");
-  banner.innerHTML =
+  gmbError.classList.add("hidden");
+  document.getElementById("gmb-status").innerHTML =
     "🚨 Ficha inexistente" +
     '<span class="result-detail">Sua empresa é <strong>invisível no Google Maps</strong>. Quando alguém procura pelo seu serviço na sua cidade, quem aparece — e recebe a ligação — é o concorrente. Cada dia sem ficha é faturamento indo embora.</span>';
-  document.getElementById("gmb-missing").innerHTML = "";
-  gmbResult.classList.remove("hidden");
-  gmbResult.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-document.getElementById("gmb-diagnose").addEventListener("click", () => {
-  const answers = GMB_QUESTIONS.map((_, i) => {
-    const checked = document.querySelector(`input[name="gmb-q${i}"]:checked`);
-    return checked ? Number(checked.value) : 0;
-  });
-  // a ficha existe (link validado) = 1 ponto, + 9 itens do checklist
-  const score = 1 + answers.reduce((s, v) => s + v, 0);
-
-  let title, detail;
-  if (score <= 4) {
-    title = "🚨 Ficha extremamente incompleta";
-    detail =
-      "Com esse nível de cadastro, o Google quase não mostra sua empresa. Você <strong>não está aparecendo</strong> nas buscas locais e está perdendo ligações, clientes e faturamento para concorrentes com fichas completas.";
-  } else if (score <= 8) {
-    title = "⚠️ Parcialmente cadastrada";
-    detail =
-      "Sua ficha existe, mas está longe do potencial. O Google prioriza fichas completas e ativas — na prática, você <strong>ainda não está aparecendo</strong> nas primeiras posições e os clientes que procuram seu serviço estão ligando para o concorrente.";
-  } else {
-    title = "⚠️ Boa base — falta acelerar";
-    detail =
-      "Sua ficha está bem cadastrada, mas <strong>ficha sozinha não basta</strong> para dominar as buscas locais: seus concorrentes investem em SEO local e Google Ads para aparecer antes de você. Sem essa aceleração, parte das ligações e do faturamento continua indo para eles.";
-  }
-
-  document.getElementById("gmb-status").innerHTML = title + '<span class="result-detail">' + detail + "</span>";
-
-  const missingWrap = document.getElementById("gmb-missing");
-  missingWrap.innerHTML = "";
-  const missing = GMB_QUESTIONS.filter((_, i) => answers[i] === 0);
-  if (missing.length > 0) {
-    missingWrap.appendChild(el("h3", null, "O que está faltando na sua ficha:"));
-    const ul = el("ul");
-    missing.forEach((m) => ul.appendChild(el("li", null, escapeHTML(m.missing))));
-    missingWrap.appendChild(ul);
-  }
-
+  document.getElementById("gmb-empresa").innerHTML = "";
+  document.getElementById("gmb-strengths").classList.add("hidden");
+  document.getElementById("gmb-problems").classList.add("hidden");
+  document.getElementById("gmb-cta").href = waLink(
+    "Olá, vim através do Hub da Consig Invest! Minha empresa ainda não tem ficha no Google e quero criar e otimizar a minha."
+  );
   gmbResult.classList.remove("hidden");
   gmbResult.scrollIntoView({ behavior: "smooth", block: "start" });
 });

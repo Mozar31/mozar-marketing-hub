@@ -106,7 +106,7 @@
     <!-- ============ FERRAMENTA 2: GOOGLE MEU NEGÓCIO ============ -->
     <section id="panel-gmb" class="panel" role="tabpanel">
       <h1>Análise da sua ficha no Google</h1>
-      <p class="lead">Cole o link da sua empresa no Google Maps e descubra o que está faltando para você aparecer quando alguém procura pelo seu serviço.</p>
+      <p class="lead">Cole o link da sua empresa no Google Maps e receba o diagnóstico automático na hora: o que está bom e o que está te custando clientes.</p>
 
       <form id="gmb-form" class="tool-form">
         <div class="field-row">
@@ -119,27 +119,19 @@
 
       <div id="gmb-error" class="alert hidden"></div>
 
-      <div id="gmb-checklist" class="hidden">
-        <div id="gmb-found" class="result-banner ok"></div>
-        <h2>Confirme os pontos abaixo para o diagnóstico completo</h2>
-        <ol id="gmb-questions" class="quiz"></ol>
-        <button type="button" id="gmb-diagnose" class="btn btn-primary">Ver meu diagnóstico</button>
-      </div>
-
       <div id="gmb-result" class="hidden">
         <div id="gmb-status" class="result-banner"></div>
-        <div id="gmb-missing" class="missing-list"></div>
-        <div id="gmb-tips" class="tips-block">
-          <h3>💡 Dicas de SEO local para subir no Google Maps</h3>
-          <ul>
-            <li><strong>Responda toda avaliação em até 48h</strong> — o Google mede o engajamento da ficha, e clientes leem as respostas antes de escolher.</li>
-            <li><strong>Adicione fotos novas toda semana</strong> — fichas com fotos recentes recebem até 42% mais pedidos de rota.</li>
-            <li><strong>Use a palavra-chave do serviço na descrição</strong> — ex.: "harmonização facial em Porto Alegre", não só "clínica de estética".</li>
-            <li><strong>Publique posts semanais na ficha</strong> — promoções, novidades e bastidores mantêm a ficha "viva" para o algoritmo.</li>
-            <li><strong>Peça avaliação para todo cliente satisfeito</strong> — quantidade e recência de avaliações são fatores diretos de ranqueamento local.</li>
-            <li><strong>Mantenha nome, endereço e telefone idênticos</strong> em todo lugar (site, ficha, redes) — inconsistência derruba a confiança do Google.</li>
-          </ul>
+        <div id="gmb-empresa" class="gmb-empresa"></div>
+        <div id="gmb-strengths" class="tips-block tips-ok hidden">
+          <h3>✅ Pontos fortes</h3>
+          <ul id="gmb-strengths-list"></ul>
         </div>
+        <div id="gmb-problems" class="missing-list hidden">
+          <h3>📉 O que está te custando clientes</h3>
+          <ul id="gmb-problems-list"></ul>
+        </div>
+        <p class="disclaimer">Posts, descrição e perguntas/respostas não são visíveis por aqui — analisamos esses pontos no diagnóstico completo com especialista.</p>
+        <a id="gmb-cta" class="btn btn-primary" href="#" target="_blank" rel="noopener">💬 Quero melhorar meu posicionamento</a>
       </div>
 
       <div class="cta-block">
