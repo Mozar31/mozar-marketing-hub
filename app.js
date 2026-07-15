@@ -152,24 +152,20 @@ function metricClass(id, numericValue) {
   return "bad";
 }
 
-async function runPageSpeed(url, attempt) {
+async function runPageSpeed(url, strategy, attempt) {
   const api =
     "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" +
     encodeURIComponent(url) +
-    "&strategy=mobile&category=performance&category=seo&locale=pt_BR" +
+    "&strategy=" + strategy +
+    "&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO&locale=pt_BR" +
     (PAGESPEED_KEY ? "&key=" + PAGESPEED_KEY : "");
 
   const res = await fetch(api);
 
   if (res.status === 429) {
     if (attempt < 2) {
-      // espera 65s com contagem regressiva e tenta de novo sozinho
-      for (let s = 65; s > 0; s--) {
-        speedBtn.innerHTML = `<span class="spinner"></span> Fila cheia — nova tentativa em ${s}s`;
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      speedBtn.innerHTML = '<span class="spinner"></span> Analisando… (até 40s)';
-      return runPageSpeed(url, attempt + 1);
+      await new Promise((r) => setTimeout(r, 65000));
+      return runPageSpeed(url, strategy, attempt + 1);
     }
     throw new Error("RATE_LIMIT");
   }
@@ -181,8 +177,54 @@ async function runPageSpeed(url, attempt) {
   return res.json();
 }
 
-function plainSummary(perf, seo, audits, url) {
+const CATEGORY_DEFS = [
+  { key: "performance", label: "Desempenho" },
+  { key: "accessibility", label: "Acessibilidade" },
+  { key: "best-practices", label: "Práticas recomendadas" },
+  { key: "seo", label: "SEO" },
+];
+
+function catScore(lh, key) {
+  const c = lh.categories[key];
+  return c && c.score != null ? Math.round(c.score * 100) : null;
+}
+
+function renderDevice(lh, gaugesId, metricsId) {
+  const gauges = document.getElementById(gaugesId);
+  gauges.innerHTML = "";
+  CATEGORY_DEFS.forEach((c) => {
+    const score = catScore(lh, c.key);
+    if (score === null) return;
+    const card = el("div", "gauge-card");
+    card.innerHTML = gaugeSVG(score) + `<span class="gauge-label">${c.label}</span>`;
+    gauges.appendChild(card);
+  });
+
+  const metricsWrap = document.getElementById(metricsId);
+  metricsWrap.innerHTML = "";
+  const metricDefs = [
+    { id: "lcp", audit: "largest-contentful-paint", label: "LCP — Conteúdo aparece em" },
+    { id: "cls", audit: "cumulative-layout-shift", label: "CLS — Estabilidade visual" },
+    { id: "tbt", audit: "total-blocking-time", label: "TBT — Tempo travado" },
+  ];
+  metricDefs.forEach((m) => {
+    const a = lh.audits[m.audit];
+    if (!a) return;
+    const card = el("div", "metric-card");
+    card.appendChild(el("div", "m-label", m.label));
+    card.appendChild(el("div", "m-value " + metricClass(m.id, a.numericValue), a.displayValue || "—"));
+    metricsWrap.appendChild(card);
+  });
+}
+
+function plainSummary(mobileLh, desktopLh, url) {
   const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "seu site"; } })();
+  const perf = catScore(mobileLh, "performance") ?? 0;
+  const perfDesk = desktopLh ? catScore(desktopLh, "performance") : null;
+  const seo = catScore(mobileLh, "seo") ?? 0;
+  const acc = catScore(mobileLh, "accessibility");
+  const bp = catScore(mobileLh, "best-practices");
+  const audits = mobileLh.audits;
 
   // veredito geral de velocidade
   let head, headText;
@@ -198,6 +240,9 @@ function plainSummary(perf, seo, audits, url) {
   } else {
     head = "🔴 Crítico: seu site está muito lento";
     headText = `O <strong>${escapeHTML(host)}</strong> tem nota ${perf} de 100 no celular. Isso significa que <strong>boa parte dos visitantes desiste antes de a página abrir</strong>. Se você investe em anúncios ou depende do Google, está literalmente pagando por visitantes que vão embora sem ver seu conteúdo.`;
+  }
+  if (perfDesk !== null) {
+    headText += ` No computador a nota é <strong>${perfDesk}</strong> — quase sempre maior que no celular, porque o processador é mais potente. Mas atenção: <strong>o Google ranqueia pelo celular</strong>, então é a nota mobile que manda.`;
   }
 
   // métricas em linguagem simples
@@ -219,6 +264,16 @@ function plainSummary(perf, seo, audits, url) {
     const v = tbt.numericValue;
     const nota = v <= 200 ? "✅ bom" : v <= 600 ? "⚠️ pode melhorar" : "🔴 ruim";
     items.push(`<li><strong>Tempo travado (TBT): ${tbt.displayValue} — ${nota}.</strong> É quanto tempo a página fica "congelada", sem responder ao toque ou clique. O ideal é ficar abaixo de 200 ms.</li>`);
+  }
+
+  // acessibilidade e práticas recomendadas em linguagem simples
+  if (acc !== null) {
+    const nota = acc >= 90 ? "✅ boa" : acc >= 70 ? "⚠️ pode melhorar" : "🔴 ruim";
+    items.push(`<li><strong>Acessibilidade: ${acc}/100 — ${nota}.</strong> Mede se qualquer pessoa consegue usar seu site: quem enxerga pouco, quem usa leitor de tela, quem navega só pelo teclado. Site acessível atende mais gente — e o Google valoriza sites que funcionam para todos.</li>`);
+  }
+  if (bp !== null) {
+    const nota = bp >= 90 ? "✅ boas" : bp >= 70 ? "⚠️ podem melhorar" : "🔴 ruins";
+    items.push(`<li><strong>Práticas recomendadas: ${bp}/100 — ${nota}.</strong> Verifica segurança e tecnologia: conexão protegida (cadeado HTTPS), ausência de erros escondidos e de bibliotecas desatualizadas ou vulneráveis. Nota baixa aqui é risco de segurança e de o navegador exibir avisos que espantam clientes.</li>`);
   }
 
   // SEO em linguagem simples
@@ -261,38 +316,31 @@ speedForm.addEventListener("submit", async (e) => {
 
   speedResults.classList.add("hidden");
   speedBtn.disabled = true;
-  speedBtn.innerHTML = '<span class="spinner"></span> Analisando… (até 40s)';
+  speedBtn.innerHTML = '<span class="spinner"></span> Analisando celular e computador… (até 60s)';
 
   try {
-    const data = await runPageSpeed(url, 0);
-    const lh = data.lighthouseResult;
-    if (!lh) throw new Error("API_ERROR:Resposta sem resultado Lighthouse.");
+    // roda as duas análises em paralelo; se a de computador falhar, segue só com a de celular
+    const [mobileData, desktopData] = await Promise.all([
+      runPageSpeed(url, "mobile", 0),
+      runPageSpeed(url, "desktop", 0).catch(() => null),
+    ]);
+    const mobileLh = mobileData.lighthouseResult;
+    if (!mobileLh) throw new Error("API_ERROR:Resposta sem resultado Lighthouse.");
+    const desktopLh = desktopData ? desktopData.lighthouseResult : null;
 
-    const perf = Math.round((lh.categories.performance?.score ?? 0) * 100);
-    const seo = Math.round((lh.categories.seo?.score ?? 0) * 100);
+    renderDevice(mobileLh, "gauges-mobile", "metrics-mobile");
+    if (desktopLh) {
+      renderDevice(desktopLh, "gauges-desktop", "metrics-desktop");
+    } else {
+      document.getElementById("gauges-desktop").innerHTML =
+        '<p class="hint">Não foi possível analisar a versão de computador desta vez.</p>';
+      document.getElementById("metrics-desktop").innerHTML = "";
+    }
 
-    document.getElementById("gauge-perf").innerHTML = gaugeSVG(perf);
-    document.getElementById("gauge-seo").innerHTML = gaugeSVG(seo);
-
-    const audits = lh.audits;
-    const metricsWrap = document.getElementById("speed-metrics");
-    metricsWrap.innerHTML = "";
-    const metricDefs = [
-      { id: "lcp", audit: "largest-contentful-paint", label: "LCP — Maior elemento" },
-      { id: "cls", audit: "cumulative-layout-shift", label: "CLS — Estabilidade visual" },
-      { id: "tbt", audit: "total-blocking-time", label: "TBT — Tempo de bloqueio" },
-    ];
-    metricDefs.forEach((m) => {
-      const a = audits[m.audit];
-      if (!a) return;
-      const card = el("div", "metric-card");
-      card.appendChild(el("div", "m-label", m.label));
-      card.appendChild(el("div", "m-value " + metricClass(m.id, a.numericValue), a.displayValue || "—"));
-      metricsWrap.appendChild(card);
-    });
+    const audits = mobileLh.audits;
 
     // resumo em linguagem simples
-    document.getElementById("speed-summary").innerHTML = plainSummary(perf, seo, audits, url);
+    document.getElementById("speed-summary").innerHTML = plainSummary(mobileLh, desktopLh, url);
 
     const opps = Object.values(audits)
       .filter((a) => a.details && a.details.type === "opportunity" && (a.details.overallSavingsMs || 0) > 0)

@@ -80,23 +80,18 @@
       <div id="speed-error" class="alert hidden"></div>
 
       <div id="speed-results" class="hidden">
-        <div class="gauges">
-          <div class="gauge-card">
-            <div id="gauge-perf"></div>
-            <span class="gauge-label">Performance (mobile)</span>
-          </div>
-          <div class="gauge-card">
-            <div id="gauge-seo"></div>
-            <span class="gauge-label">SEO</span>
-          </div>
-        </div>
+        <h2>📱 No celular <span class="h2-note">(é esta nota que o Google usa para ranquear)</span></h2>
+        <div class="gauges" id="gauges-mobile"></div>
+        <div class="metric-cards" id="metrics-mobile"></div>
 
-        <div class="metric-cards" id="speed-metrics"></div>
+        <h2>💻 No computador</h2>
+        <div class="gauges" id="gauges-desktop"></div>
+        <div class="metric-cards" id="metrics-desktop"></div>
 
         <div id="speed-summary" class="tips-block"></div>
 
         <div id="speed-opps-wrap">
-          <h2>Principais oportunidades de melhoria</h2>
+          <h2>Principais oportunidades de melhoria (celular)</h2>
           <ul id="speed-opps" class="opps-list"></ul>
         </div>
       </div>

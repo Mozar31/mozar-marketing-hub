@@ -275,9 +275,10 @@ input:focus, select:focus { outline: none; border-color: var(--cyan); }
 .result-banner.ok { border-color: var(--green); }
 
 /* ===== Gauges ===== */
-.gauges { display: flex; gap: 20px; flex-wrap: wrap; margin: 26px 0; }
+.h2-note { font-family: var(--font-body); font-weight: 400; font-size: 0.75rem; color: var(--text-dim); }
+.gauges { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 20px; }
 .gauge-card {
-  flex: 1 1 180px;
+  flex: 1 1 150px;
   background: var(--navy-3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
