@@ -82,6 +82,8 @@ const LIB = {
   mammoth: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js",
   xlsx: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   html2pdf: "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
+  jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+  heic2any: "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
 };
 
 async function ensurePdfjs() {
@@ -649,40 +651,115 @@ document.getElementById("roi-form-meta").addEventListener("submit", (e) => {
 });
 
 /* ============================================================
-   CONVERSORES
+   CONVERSORES — registro central
 ============================================================ */
+const CONV_CATS = [
+  { id: "pdf", label: "📄 PDF" },
+  { id: "img", label: "🖼️ Imagens" },
+  { id: "doc", label: "📝 Documentos" },
+  { id: "dados", label: "📊 Planilhas e Dados" },
+  { id: "zip", label: "🗜️ Compactados" },
+];
+
 const CONVERTERS = [
+  /* ---------- PDF ---------- */
   {
-    slug: "pdf-para-word", icon: "📄", title: "PDF → Word",
-    desc: "Transforme PDF em documento editável",
+    slug: "pdf-para-word", cat: "pdf", icon: "📄", title: "PDF → Word",
+    desc: "Transforme PDF em documento editável", kw: "doc docx editavel texto",
     accept: "application/pdf,.pdf", multiple: false,
     dropText: "Arraste o PDF aqui ou clique para selecionar",
     handler: convertPdfToWord,
   },
   {
-    slug: "word-para-pdf", icon: "📝", title: "Word → PDF",
-    desc: "Converta .docx em PDF pronto para enviar",
-    accept: ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document", multiple: false,
-    dropText: "Arraste o arquivo .docx aqui ou clique para selecionar",
-    handler: convertWordToPdf,
-  },
-  {
-    slug: "imagem-para-pdf", icon: "🖼️", title: "Imagem → PDF",
-    desc: "JPG, PNG ou WebP viram um PDF (aceita várias)",
-    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: true,
-    dropText: "Arraste as imagens aqui ou clique para selecionar (pode escolher várias)",
-    handler: convertImagesToPdf,
-  },
-  {
-    slug: "pdf-para-imagem", icon: "🎞️", title: "PDF → JPG",
-    desc: "Cada página do PDF vira uma imagem",
+    slug: "pdf-para-imagem", cat: "pdf", icon: "🎞️", title: "PDF → JPG",
+    desc: "Cada página do PDF vira uma imagem", kw: "png foto imagem",
     accept: "application/pdf,.pdf", multiple: false,
     dropText: "Arraste o PDF aqui ou clique para selecionar",
     handler: convertPdfToImages,
   },
   {
-    slug: "converter-imagem", icon: "🔁", title: "Converter imagem",
-    desc: "JPG ↔ PNG ↔ WebP em um clique",
+    slug: "pdf-para-txt", cat: "pdf", icon: "🔤", title: "PDF → Texto",
+    desc: "Extraia todo o texto do PDF em um .txt", kw: "txt extrair texto",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    handler: convertPdfToTxt,
+  },
+  {
+    slug: "juntar-pdf", cat: "pdf", icon: "📚", title: "Juntar PDFs",
+    desc: "Una vários PDFs em um único arquivo", kw: "unir mesclar merge combinar",
+    accept: "application/pdf,.pdf", multiple: true,
+    dropText: "Arraste 2 ou mais PDFs aqui (a ordem de seleção é a ordem final)",
+    handler: mergePdfs,
+  },
+  {
+    slug: "dividir-pdf", cat: "pdf", icon: "✂️", title: "Dividir PDF",
+    desc: "Extraia um intervalo de páginas do PDF", kw: "separar intervalo split",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    options: () => `
+      <label>Da página
+        <input type="number" id="opt-page-from" min="1" value="1">
+      </label>
+      <label>Até a página
+        <input type="number" id="opt-page-to" min="1" value="1">
+      </label>`,
+    handler: splitPdf,
+  },
+  {
+    slug: "extrair-paginas-pdf", cat: "pdf", icon: "🎯", title: "Extrair páginas do PDF",
+    desc: "Escolha páginas específicas: 1, 3-5, 8…", kw: "paginas especificas selecionar",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    options: () => `
+      <label>Páginas (ex.: 1, 3-5, 8)
+        <input type="text" id="opt-pages" placeholder="1, 3-5, 8" style="min-width:200px">
+      </label>`,
+    handler: extractPdfPages,
+  },
+  {
+    slug: "remover-paginas-pdf", cat: "pdf", icon: "🗑️", title: "Remover páginas do PDF",
+    desc: "Apague páginas indesejadas: 2, 4-6…", kw: "apagar deletar excluir paginas",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    options: () => `
+      <label>Páginas a remover (ex.: 2, 4-6)
+        <input type="text" id="opt-pages" placeholder="2, 4-6" style="min-width:200px">
+      </label>`,
+    handler: removePdfPages,
+  },
+  {
+    slug: "girar-pdf", cat: "pdf", icon: "🔄", title: "Girar PDF",
+    desc: "Gire todas as páginas em 90°, 180° ou 270°", kw: "rotacionar rotate orientacao",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    options: () => `
+      <label>Girar
+        <select id="opt-rotate">
+          <option value="90">90° (horário)</option>
+          <option value="180">180°</option>
+          <option value="270">270° (anti-horário)</option>
+        </select>
+      </label>`,
+    handler: rotatePdf,
+  },
+  {
+    slug: "inverter-pdf", cat: "pdf", icon: "↕️", title: "Inverter ordem do PDF",
+    desc: "Última página vira a primeira", kw: "reverter ordem reverse",
+    accept: "application/pdf,.pdf", multiple: false,
+    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    handler: reversePdf,
+  },
+  /* ---------- Imagens ---------- */
+  {
+    slug: "imagem-para-pdf", cat: "img", icon: "🖼️", title: "Imagem → PDF",
+    desc: "JPG, PNG ou WebP viram um PDF (aceita várias)", kw: "foto jpg png",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: true,
+    dropText: "Arraste as imagens aqui ou clique para selecionar (pode escolher várias)",
+    handler: convertImagesToPdf,
+  },
+  {
+    slug: "converter-imagem", cat: "img", icon: "🔁", title: "Converter imagem",
+    desc: "JPG ↔ PNG ↔ WebP em um clique", kw: "formato foto trocar",
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
     dropText: "Arraste a imagem aqui ou clique para selecionar",
     options: () => `
@@ -696,8 +773,8 @@ const CONVERTERS = [
     handler: convertImageFormat,
   },
   {
-    slug: "comprimir-imagem", icon: "🗜️", title: "Comprimir imagem",
-    desc: "Reduza o tamanho de JPG e PNG sem perder qualidade visível",
+    slug: "comprimir-imagem", cat: "img", icon: "🗜️", title: "Comprimir imagem",
+    desc: "Reduza o tamanho sem perder qualidade visível", kw: "reduzir peso otimizar",
     accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
     dropText: "Arraste a imagem aqui ou clique para selecionar",
     options: () => `
@@ -707,47 +784,248 @@ const CONVERTERS = [
     handler: compressImage,
   },
   {
-    slug: "juntar-pdf", icon: "📚", title: "Juntar PDFs",
-    desc: "Una vários PDFs em um único arquivo",
-    accept: "application/pdf,.pdf", multiple: true,
-    dropText: "Arraste 2 ou mais PDFs aqui (a ordem de seleção é a ordem final)",
-    handler: mergePdfs,
-  },
-  {
-    slug: "dividir-pdf", icon: "✂️", title: "Dividir PDF",
-    desc: "Extraia um intervalo de páginas do PDF",
-    accept: "application/pdf,.pdf", multiple: false,
-    dropText: "Arraste o PDF aqui ou clique para selecionar",
+    slug: "redimensionar-imagem", cat: "img", icon: "📐", title: "Redimensionar imagem",
+    desc: "Mude largura e altura mantendo a proporção", kw: "tamanho resize largura altura",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
     options: () => `
-      <label>Da página
-        <input type="number" id="opt-page-from" min="1" value="1">
+      <label>Largura (px)
+        <input type="number" id="opt-width" min="1" placeholder="ex.: 1080">
       </label>
-      <label>Até a página
-        <input type="number" id="opt-page-to" min="1" value="1">
+      <label>Altura (px) — deixe vazio p/ manter proporção
+        <input type="number" id="opt-height" min="1" placeholder="automática">
       </label>`,
-    handler: splitPdf,
+    handler: resizeImage,
   },
   {
-    slug: "excel-csv", icon: "📊", title: "Excel ↔ CSV",
-    desc: "Converta planilhas .xlsx em CSV e vice-versa",
+    slug: "girar-imagem", cat: "img", icon: "🌀", title: "Girar imagem",
+    desc: "90°, 180° ou 270° em um clique", kw: "rotacionar rotate",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    options: () => `
+      <label>Girar
+        <select id="opt-rotate">
+          <option value="90">90° (horário)</option>
+          <option value="180">180°</option>
+          <option value="270">270° (anti-horário)</option>
+        </select>
+      </label>`,
+    handler: rotateImage,
+  },
+  {
+    slug: "espelhar-imagem", cat: "img", icon: "🪞", title: "Espelhar imagem",
+    desc: "Inverta horizontal ou verticalmente", kw: "flip inverter mirror",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    options: () => `
+      <label>Direção
+        <select id="opt-flip">
+          <option value="h">Horizontal</option>
+          <option value="v">Vertical</option>
+        </select>
+      </label>`,
+    handler: flipImage,
+  },
+  {
+    slug: "imagem-pb", cat: "img", icon: "⚫", title: "Imagem em preto e branco",
+    desc: "Escala de cinza ou P&B puro", kw: "cinza grayscale preto branco",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    options: () => `
+      <label>Estilo
+        <select id="opt-bw">
+          <option value="gray">Escala de cinza</option>
+          <option value="bw">Preto e branco puro</option>
+        </select>
+      </label>`,
+    handler: grayscaleImage,
+  },
+  {
+    slug: "juntar-imagens", cat: "img", icon: "🧩", title: "Juntar imagens",
+    desc: "Combine várias imagens lado a lado ou empilhadas", kw: "unir combinar mosaico",
+    accept: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp", multiple: true,
+    dropText: "Arraste 2 ou mais imagens (a ordem de seleção é a ordem final)",
+    options: () => `
+      <label>Direção
+        <select id="opt-join">
+          <option value="v">Empilhadas (vertical)</option>
+          <option value="h">Lado a lado (horizontal)</option>
+        </select>
+      </label>`,
+    handler: joinImages,
+  },
+  {
+    slug: "heic-para-jpg", cat: "img", icon: "🍎", title: "HEIC → JPG",
+    desc: "Fotos de iPhone viram JPG universal", kw: "iphone apple heif foto",
+    accept: ".heic,.heif,image/heic,image/heif", multiple: false,
+    dropText: "Arraste a foto .heic do iPhone aqui",
+    handler: convertHeic,
+  },
+  {
+    slug: "remover-exif", cat: "img", icon: "🕵️", title: "Remover dados da foto (EXIF)",
+    desc: "Apague localização GPS e metadados da imagem", kw: "gps privacidade metadados localizacao",
+    accept: "image/jpeg,image/png,.jpg,.jpeg,.png", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    handler: stripExif,
+  },
+  {
+    slug: "imagem-para-base64", cat: "img", icon: "🔗", title: "Imagem → Base64",
+    desc: "Gere o código Base64/Data URI da imagem", kw: "data uri codigo embed",
+    accept: "image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif", multiple: false,
+    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    handler: imageToBase64,
+  },
+  /* ---------- Documentos ---------- */
+  {
+    slug: "word-para-pdf", cat: "doc", icon: "📝", title: "Word → PDF",
+    desc: "Converta .docx em PDF pronto para enviar", kw: "docx documento",
+    accept: ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document", multiple: false,
+    dropText: "Arraste o arquivo .docx aqui ou clique para selecionar",
+    handler: convertWordToPdf,
+  },
+  /* ---------- Planilhas e Dados ---------- */
+  {
+    slug: "excel-csv", cat: "dados", icon: "📊", title: "Excel ↔ CSV",
+    desc: "Converta planilhas .xlsx em CSV e vice-versa", kw: "planilha xlsx xls",
     accept: ".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv", multiple: false,
     dropText: "Arraste a planilha (.xlsx, .xls) ou o .csv aqui",
     handler: convertSpreadsheet,
   },
+  {
+    slug: "json-csv", cat: "dados", icon: "🔣", title: "JSON ↔ CSV",
+    desc: "Dados JSON viram tabela CSV e vice-versa", kw: "dados api tabela",
+    accept: ".json,.csv,application/json,text/csv", multiple: false,
+    dropText: "Arraste o arquivo .json ou .csv aqui",
+    handler: convertJsonCsv,
+  },
+  {
+    slug: "csv-delimitador", cat: "dados", icon: "🔀", title: "Trocar separador do CSV",
+    desc: "Vírgula ↔ ponto e vírgula (padrão Excel BR)", kw: "delimitador virgula excel brasileiro",
+    accept: ".csv,text/csv", multiple: false,
+    dropText: "Arraste o arquivo .csv aqui",
+    handler: swapCsvDelimiter,
+  },
+  /* ---------- Compactados ---------- */
+  {
+    slug: "criar-zip", cat: "zip", icon: "📦", title: "Criar ZIP",
+    desc: "Compacte vários arquivos em um .zip", kw: "compactar zipar comprimir arquivos",
+    accept: "*/*", multiple: true,
+    dropText: "Arraste os arquivos que quer compactar (qualquer tipo)",
+    handler: createZip,
+  },
+  {
+    slug: "extrair-zip", cat: "zip", icon: "📂", title: "Extrair ZIP",
+    desc: "Veja e baixe os arquivos de dentro do .zip", kw: "descompactar unzip abrir",
+    accept: ".zip,application/zip,application/x-zip-compressed", multiple: false,
+    dropText: "Arraste o arquivo .zip aqui",
+    handler: extractZip,
+  },
 ];
 
 let activeConverter = null;
+let pendingConvFile = null;
+let activeCat = "todos";
 
-const convGrid = document.getElementById("conv-grid");
-CONVERTERS.forEach((c) => {
-  const card = el("button", "conv-card");
-  card.type = "button";
-  card.innerHTML = `<span class="c-icon">${c.icon}</span><span class="c-title">${c.title}</span><span class="c-desc">${c.desc}</span>`;
-  card.addEventListener("click", () => { location.hash = "conversores/" + c.slug; });
-  convGrid.appendChild(card);
+function normalizeSearch(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function renderHub() {
+  const grid = document.getElementById("conv-grid");
+  const q = normalizeSearch(document.getElementById("conv-search").value.trim());
+  grid.innerHTML = "";
+
+  CONV_CATS.forEach((cat) => {
+    if (activeCat !== "todos" && activeCat !== cat.id) return;
+    const items = CONVERTERS.filter((c) => {
+      if (c.cat !== cat.id) return false;
+      if (!q) return true;
+      return normalizeSearch(c.title + " " + c.desc + " " + (c.kw || "") + " " + c.slug).includes(q);
+    });
+    if (!items.length) return;
+
+    grid.appendChild(el("div", "conv-cat-title", cat.label));
+    const section = el("div", "conv-grid");
+    items.forEach((c) => {
+      const card = el("button", "conv-card");
+      card.type = "button";
+      card.innerHTML = `<span class="c-icon">${c.icon}</span><span class="c-title">${c.title}</span><span class="c-desc">${c.desc}</span>`;
+      card.addEventListener("click", () => { location.hash = "conversores/" + c.slug; });
+      section.appendChild(card);
+    });
+    grid.appendChild(section);
+  });
+
+  if (!grid.children.length) {
+    grid.appendChild(el("p", "conv-empty", 'Nenhum conversor encontrado para "' + escapeHTML(q) + '". Fale com a gente que avaliamos incluir!'));
+  }
+}
+
+// filtros por categoria
+const catsWrap = document.getElementById("conv-cats");
+[{ id: "todos", label: "Todos" }].concat(CONV_CATS).forEach((cat) => {
+  const chip = el("button", "cat-chip" + (cat.id === "todos" ? " active" : ""), cat.label);
+  chip.type = "button";
+  chip.dataset.cat = cat.id;
+  chip.addEventListener("click", () => {
+    activeCat = cat.id;
+    document.querySelectorAll(".cat-chip").forEach((c) => c.classList.toggle("active", c.dataset.cat === cat.id));
+    renderHub();
+  });
+  catsWrap.appendChild(chip);
 });
 
+document.getElementById("conv-search").addEventListener("input", renderHub);
 document.getElementById("conv-back").addEventListener("click", () => { location.hash = "conversores"; });
+
+/* --- Conversor Universal: detecta o arquivo e sugere ferramentas --- */
+function convertersForFile(file) {
+  const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+  return CONVERTERS.filter((c) => {
+    if (c.accept === "*/*") return false; // criar-zip aceita tudo; oferecido à parte
+    return c.accept.toLowerCase().split(",").some((a) => a.trim() === ext);
+  });
+}
+
+const uniDrop = document.getElementById("conv-universal");
+const uniInput = document.getElementById("conv-universal-input");
+uniDrop.addEventListener("click", () => uniInput.click());
+uniDrop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") uniInput.click(); });
+uniDrop.addEventListener("dragover", (e) => { e.preventDefault(); uniDrop.classList.add("dragover"); });
+uniDrop.addEventListener("dragleave", () => uniDrop.classList.remove("dragover"));
+uniDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  uniDrop.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleUniversal(e.dataTransfer.files[0]);
+});
+uniInput.addEventListener("change", () => { if (uniInput.files.length) handleUniversal(uniInput.files[0]); });
+
+function handleUniversal(file) {
+  const matches = convertersForFile(file);
+  const box = document.getElementById("conv-universal-result");
+  box.innerHTML = `<span class="u-title">📎 ${escapeHTML(file.name)} — ${matches.length ? "o que você quer fazer?" : "formato ainda não suportado"}</span>`;
+  const opts = el("div", "u-opts");
+  if (matches.length) {
+    matches.forEach((c) => {
+      const b = el("button", null, `${c.icon} ${c.title}`);
+      b.type = "button";
+      b.addEventListener("click", () => {
+        pendingConvFile = file;
+        location.hash = "conversores/" + c.slug;
+      });
+      opts.appendChild(b);
+    });
+  } else {
+    opts.appendChild(el("span", "conv-empty", "Você ainda pode compactá-lo em ZIP:"));
+    const b = el("button", null, "📦 Criar ZIP");
+    b.type = "button";
+    b.addEventListener("click", () => { pendingConvFile = file; location.hash = "conversores/criar-zip"; });
+    opts.appendChild(b);
+  }
+  box.appendChild(opts);
+  box.classList.remove("hidden");
+  uniInput.value = "";
+}
 
 function convReset() {
   ["conv-status", "conv-error", "conv-done"].forEach((id) => document.getElementById(id).classList.add("hidden"));
@@ -759,7 +1037,7 @@ function showConverter(slug) {
   activeConverter = conv || null;
   document.getElementById("conv-hub").classList.toggle("hidden", !!conv);
   document.getElementById("conv-page").classList.toggle("hidden", !conv);
-  if (!conv) return;
+  if (!conv) { renderHub(); return; }
 
   document.getElementById("conv-title").textContent = conv.icon + " " + conv.title;
   document.getElementById("conv-desc").textContent = conv.desc + ".";
@@ -783,6 +1061,13 @@ function showConverter(slug) {
     opts.classList.add("hidden");
   }
   convReset();
+
+  // arquivo vindo do Conversor Universal: converte na hora
+  if (pendingConvFile) {
+    const f = pendingConvFile;
+    pendingConvFile = null;
+    handleConvFiles([f]);
+  }
 }
 
 function convStatus(msg) {
@@ -791,10 +1076,19 @@ function convStatus(msg) {
   s.classList.remove("hidden");
 }
 
+let lastConvFiles = null;
+
 function convError(msg) {
   document.getElementById("conv-status").classList.add("hidden");
   const e = document.getElementById("conv-error");
   e.textContent = "⚠️ " + msg;
+  if (lastConvFiles && activeConverter && activeConverter.options) {
+    const retry = el("button", "btn-copy", "🔁 Tentar de novo com as opções atuais");
+    retry.type = "button";
+    retry.style.marginLeft = "10px";
+    retry.addEventListener("click", () => handleConvFiles(lastConvFiles));
+    e.appendChild(retry);
+  }
   e.classList.remove("hidden");
 }
 
@@ -803,12 +1097,34 @@ function convDone(links, note) {
   const done = document.getElementById("conv-done");
   done.innerHTML = '<div class="done-banner">✅ Conversão concluída!' + (note ? " " + note : "") + "</div>";
   const list = el("div", "file-list");
-  links.forEach(({ blob, filename, label }) => {
-    const a = el("a", "btn btn-primary");
-    a.textContent = label || "⬇️ Baixar " + filename;
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    list.appendChild(a);
+  links.forEach((item) => {
+    if (item.text !== undefined) {
+      const ta = el("textarea");
+      ta.value = item.text;
+      ta.readOnly = true;
+      Object.assign(ta.style, { width: "100%", height: "120px", background: "var(--navy)", color: "var(--text)", border: "1px solid rgba(159,172,209,0.25)", borderRadius: "10px", padding: "10px", fontFamily: "var(--font-mono)", fontSize: "0.75rem" });
+      list.appendChild(ta);
+      const copyBtn = el("button", "btn btn-primary", "📋 Copiar código");
+      copyBtn.type = "button";
+      copyBtn.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(item.text); copyBtn.textContent = "Copiado ✓"; } catch { ta.select(); document.execCommand("copy"); copyBtn.textContent = "Copiado ✓"; }
+        setTimeout(() => (copyBtn.textContent = "📋 Copiar código"), 2000);
+      });
+      list.appendChild(copyBtn);
+      if (item.filename) {
+        const a = el("a", "btn btn-primary");
+        a.textContent = "⬇️ Baixar como arquivo";
+        a.href = URL.createObjectURL(new Blob([item.text], { type: "text/plain;charset=utf-8" }));
+        a.download = item.filename;
+        list.appendChild(a);
+      }
+    } else {
+      const a = el("a", "btn btn-primary");
+      a.textContent = item.label || "⬇️ Baixar " + item.filename;
+      a.href = URL.createObjectURL(item.blob);
+      a.download = item.filename;
+      list.appendChild(a);
+    }
   });
   done.appendChild(list);
   done.classList.remove("hidden");
@@ -832,6 +1148,7 @@ convInput.addEventListener("change", () => {
 
 async function handleConvFiles(files) {
   if (!activeConverter) return;
+  lastConvFiles = files;
   convReset();
   try {
     await activeConverter.handler(files);
@@ -1149,6 +1466,335 @@ async function convertSpreadsheet(files) {
       label: "⬇️ Baixar Excel (.xlsx)",
     }]);
   }
+}
+
+/* --- utilidades PDF (pdf-lib) --- */
+async function loadPdfLibDoc(file) {
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") throw new Error("Escolha um arquivo .pdf.");
+  await loadScript(LIB.pdflib);
+  try {
+    return await PDFLib.PDFDocument.load(await file.arrayBuffer());
+  } catch {
+    throw new Error("Este PDF está protegido por senha ou corrompido.");
+  }
+}
+
+function parsePageSpec(spec, total) {
+  const out = new Set();
+  (spec || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((part) => {
+    const m = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) {
+      for (let i = Math.min(+m[1], +m[2]); i <= Math.max(+m[1], +m[2]); i++) if (i >= 1 && i <= total) out.add(i - 1);
+    } else if (/^\d+$/.test(part)) {
+      const n = +part;
+      if (n >= 1 && n <= total) out.add(n - 1);
+    }
+  });
+  return [...out].sort((a, b) => a - b);
+}
+
+/* --- 10. PDF → Texto --- */
+async function convertPdfToTxt(files) {
+  const file = files[0];
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") throw new Error("Escolha um arquivo .pdf.");
+  convStatus("Carregando leitor de PDF…");
+  await ensurePdfjs();
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let text = "";
+  for (let p = 1; p <= pdf.numPages; p++) {
+    convStatus(`Extraindo texto da página ${p} de ${pdf.numPages}…`);
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    text += pageItemsToParagraphs(content.items).join("\n\n") + "\n\n";
+  }
+  if (text.trim().length < 20) throw new Error("Este PDF parece ser escaneado (imagem): não há texto extraível.");
+  convDone([{ blob: new Blob(["﻿" + text], { type: "text/plain;charset=utf-8" }), filename: baseName(file.name) + ".txt", label: "⬇️ Baixar texto (.txt)" }]);
+}
+
+/* --- 11. Extrair páginas específicas --- */
+async function extractPdfPages(files) {
+  const src = await loadPdfLibDoc(files[0]);
+  const total = src.getPageCount();
+  const idx = parsePageSpec(document.getElementById("opt-pages").value, total);
+  if (!idx.length) throw new Error(`Informe as páginas no campo acima (ex.: 1, 3-5). O PDF tem ${total} página(s).`);
+  convStatus(`Extraindo ${idx.length} página(s)…`);
+  const out = await PDFLib.PDFDocument.create();
+  (await out.copyPages(src, idx)).forEach((p) => out.addPage(p));
+  convDone([{ blob: new Blob([await out.save()], { type: "application/pdf" }), filename: baseName(files[0].name) + "-paginas.pdf", label: `⬇️ Baixar ${idx.length} página(s)` }]);
+}
+
+/* --- 12. Remover páginas --- */
+async function removePdfPages(files) {
+  const src = await loadPdfLibDoc(files[0]);
+  const total = src.getPageCount();
+  const remove = new Set(parsePageSpec(document.getElementById("opt-pages").value, total));
+  if (!remove.size) throw new Error(`Informe as páginas a remover no campo acima (ex.: 2, 4-6). O PDF tem ${total} página(s).`);
+  const keep = [];
+  for (let i = 0; i < total; i++) if (!remove.has(i)) keep.push(i);
+  if (!keep.length) throw new Error("Você removeria todas as páginas — sobraria um PDF vazio.");
+  convStatus(`Removendo ${remove.size} página(s)…`);
+  const out = await PDFLib.PDFDocument.create();
+  (await out.copyPages(src, keep)).forEach((p) => out.addPage(p));
+  convDone([{ blob: new Blob([await out.save()], { type: "application/pdf" }), filename: baseName(files[0].name) + "-sem-paginas.pdf", label: `⬇️ Baixar PDF (${keep.length} páginas)` }]);
+}
+
+/* --- 13. Girar PDF --- */
+async function rotatePdf(files) {
+  const src = await loadPdfLibDoc(files[0]);
+  const deg = parseInt(document.getElementById("opt-rotate").value, 10);
+  convStatus("Girando páginas…");
+  src.getPages().forEach((page) => {
+    page.setRotation(PDFLib.degrees((page.getRotation().angle + deg) % 360));
+  });
+  convDone([{ blob: new Blob([await src.save()], { type: "application/pdf" }), filename: baseName(files[0].name) + "-girado.pdf", label: "⬇️ Baixar PDF girado" }]);
+}
+
+/* --- 14. Inverter ordem --- */
+async function reversePdf(files) {
+  const src = await loadPdfLibDoc(files[0]);
+  const total = src.getPageCount();
+  convStatus("Invertendo ordem das páginas…");
+  const idx = [];
+  for (let i = total - 1; i >= 0; i--) idx.push(i);
+  const out = await PDFLib.PDFDocument.create();
+  (await out.copyPages(src, idx)).forEach((p) => out.addPage(p));
+  convDone([{ blob: new Blob([await out.save()], { type: "application/pdf" }), filename: baseName(files[0].name) + "-invertido.pdf", label: "⬇️ Baixar PDF invertido" }]);
+}
+
+/* --- 15. Redimensionar imagem --- */
+async function resizeImage(files) {
+  const file = files[0];
+  const w = parseInt(document.getElementById("opt-width").value, 10) || 0;
+  const h = parseInt(document.getElementById("opt-height").value, 10) || 0;
+  if (!w && !h) throw new Error("Informe a largura ou a altura desejada no campo acima.");
+  convStatus("Redimensionando…");
+  const img = await loadImageFile(file);
+  const ratio = img.naturalWidth / img.naturalHeight;
+  const outW = w || Math.round(h * ratio);
+  const outH = h || Math.round(w / ratio);
+  const canvas = document.createElement("canvas");
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  const isJpg = /image\/jpeg/.test(file.type) || /\.jpe?g$/i.test(file.name);
+  if (isJpg) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, outW, outH); }
+  ctx.drawImage(img, 0, 0, outW, outH);
+  const type = isJpg ? "image/jpeg" : "image/png";
+  const blob = await canvasToBlob(canvas, type, 0.92);
+  convDone([{ blob, filename: `${baseName(file.name)}-${outW}x${outH}.${isJpg ? "jpg" : "png"}`, label: `⬇️ Baixar ${outW}×${outH}` }]);
+}
+
+/* --- 16. Girar imagem --- */
+async function rotateImage(files) {
+  const file = files[0];
+  const deg = parseInt(document.getElementById("opt-rotate").value, 10);
+  convStatus("Girando…");
+  const img = await loadImageFile(file);
+  const swap = deg === 90 || deg === 270;
+  const canvas = document.createElement("canvas");
+  canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+  canvas.height = swap ? img.naturalWidth : img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+  const isJpg = /image\/jpeg/.test(file.type) || /\.jpe?g$/i.test(file.name);
+  const blob = await canvasToBlob(canvas, isJpg ? "image/jpeg" : "image/png", 0.92);
+  convDone([{ blob, filename: `${baseName(file.name)}-girada.${isJpg ? "jpg" : "png"}`, label: "⬇️ Baixar imagem girada" }]);
+}
+
+/* --- 17. Espelhar imagem --- */
+async function flipImage(files) {
+  const file = files[0];
+  const dir = document.getElementById("opt-flip").value;
+  convStatus("Espelhando…");
+  const img = await loadImageFile(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (dir === "h") { ctx.scale(-1, 1); ctx.drawImage(img, -canvas.width, 0); }
+  else { ctx.scale(1, -1); ctx.drawImage(img, 0, -canvas.height); }
+  const isJpg = /image\/jpeg/.test(file.type) || /\.jpe?g$/i.test(file.name);
+  const blob = await canvasToBlob(canvas, isJpg ? "image/jpeg" : "image/png", 0.92);
+  convDone([{ blob, filename: `${baseName(file.name)}-espelhada.${isJpg ? "jpg" : "png"}`, label: "⬇️ Baixar imagem espelhada" }]);
+}
+
+/* --- 18. Preto e branco --- */
+async function grayscaleImage(files) {
+  const file = files[0];
+  const mode = document.getElementById("opt-bw").value;
+  convStatus("Convertendo cores…");
+  const img = await loadImageFile(file);
+  const canvas = canvasFromImage(img, true);
+  const ctx = canvas.getContext("2d");
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = data.data;
+  for (let i = 0; i < px.length; i += 4) {
+    let v = Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
+    if (mode === "bw") v = v >= 128 ? 255 : 0;
+    px[i] = px[i + 1] = px[i + 2] = v;
+  }
+  ctx.putImageData(data, 0, 0);
+  const blob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+  convDone([{ blob, filename: `${baseName(file.name)}-${mode === "bw" ? "pb" : "cinza"}.jpg`, label: "⬇️ Baixar imagem" }]);
+}
+
+/* --- 19. Juntar imagens --- */
+async function joinImages(files) {
+  const imgs = files.filter((f) => /image\/(jpeg|png|webp)/.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name));
+  if (imgs.length < 2) throw new Error("Selecione pelo menos 2 imagens para juntar.");
+  const dir = document.getElementById("opt-join").value;
+  convStatus("Carregando imagens…");
+  const loaded = [];
+  for (const f of imgs) loaded.push(await loadImageFile(f));
+  const canvas = document.createElement("canvas");
+  if (dir === "v") {
+    canvas.width = Math.max(...loaded.map((i) => i.naturalWidth));
+    canvas.height = loaded.reduce((s, i) => s + i.naturalHeight, 0);
+  } else {
+    canvas.width = loaded.reduce((s, i) => s + i.naturalWidth, 0);
+    canvas.height = Math.max(...loaded.map((i) => i.naturalHeight));
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let off = 0;
+  loaded.forEach((i) => {
+    if (dir === "v") { ctx.drawImage(i, 0, off); off += i.naturalHeight; }
+    else { ctx.drawImage(i, off, 0); off += i.naturalWidth; }
+  });
+  convStatus("Gerando arquivo…");
+  const blob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+  convDone([{ blob, filename: "imagens-juntas.jpg", label: "⬇️ Baixar imagem combinada" }]);
+}
+
+/* --- 20. HEIC → JPG --- */
+async function convertHeic(files) {
+  const file = files[0];
+  if (!/\.(heic|heif)$/i.test(file.name) && !/heic|heif/.test(file.type)) throw new Error("Escolha uma foto .heic ou .heif (formato do iPhone).");
+  convStatus("Carregando conversor HEIC…");
+  await loadScript(LIB.heic2any);
+  convStatus("Convertendo (fotos grandes podem demorar)…");
+  let out;
+  try {
+    out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  } catch {
+    throw new Error("Não foi possível converter esta foto. Confirme que é um HEIC válido do iPhone.");
+  }
+  const blob = Array.isArray(out) ? out[0] : out;
+  convDone([{ blob, filename: baseName(file.name) + ".jpg", label: "⬇️ Baixar JPG" }]);
+}
+
+/* --- 21. Remover EXIF --- */
+async function stripExif(files) {
+  const file = files[0];
+  convStatus("Removendo metadados…");
+  const img = await loadImageFile(file);
+  const isJpg = /image\/jpeg/.test(file.type) || /\.jpe?g$/i.test(file.name);
+  const canvas = canvasFromImage(img, isJpg);
+  const blob = await canvasToBlob(canvas, isJpg ? "image/jpeg" : "image/png", 0.95);
+  convDone(
+    [{ blob, filename: `${baseName(file.name)}-limpa.${isJpg ? "jpg" : "png"}`, label: "⬇️ Baixar imagem sem metadados" }],
+    "(localização GPS, câmera e demais dados EXIF removidos)"
+  );
+}
+
+/* --- 22. Imagem → Base64 --- */
+async function imageToBase64(files) {
+  const file = files[0];
+  convStatus("Gerando código…");
+  const dataUri = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    fr.readAsDataURL(file);
+  });
+  convDone([{ text: dataUri, filename: baseName(file.name) + "-base64.txt" }], `(${Math.round(dataUri.length / 1024)} KB de texto)`);
+}
+
+/* --- 23. JSON ↔ CSV --- */
+async function convertJsonCsv(files) {
+  const file = files[0];
+  const isJson = /\.json$/i.test(file.name);
+  const isCsv = /\.csv$/i.test(file.name);
+  if (!isJson && !isCsv) throw new Error("Escolha um arquivo .json ou .csv.");
+  convStatus("Carregando conversor…");
+  await loadScript(LIB.xlsx);
+  const text = await file.text();
+
+  if (isJson) {
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error("Este JSON é inválido — confira o conteúdo."); }
+    if (!Array.isArray(data)) data = [data];
+    if (!data.length || typeof data[0] !== "object") throw new Error("O JSON precisa ser uma lista de objetos para virar tabela.");
+    const ws = XLSX.utils.json_to_sheet(data);
+    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ";" });
+    convDone([{ blob: new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }), filename: baseName(file.name) + ".csv", label: "⬇️ Baixar CSV" }]);
+  } else {
+    const wb = XLSX.read(text, { type: "string", FS: text.includes(";") ? ";" : "," });
+    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    convDone([{ blob: new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }), filename: baseName(file.name) + ".json", label: "⬇️ Baixar JSON" }]);
+  }
+}
+
+/* --- 24. Trocar separador CSV --- */
+async function swapCsvDelimiter(files) {
+  const file = files[0];
+  if (!/\.csv$/i.test(file.name)) throw new Error("Escolha um arquivo .csv.");
+  convStatus("Analisando separador…");
+  await loadScript(LIB.xlsx);
+  const text = await file.text();
+  const firstLine = text.split(/\r?\n/)[0] || "";
+  const semis = (firstLine.match(/;/g) || []).length;
+  const commas = (firstLine.match(/,/g) || []).length;
+  const from = semis >= commas ? ";" : ",";
+  const to = from === ";" ? "," : ";";
+  const wb = XLSX.read(text, { type: "string", FS: from });
+  const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: to });
+  convDone(
+    [{ blob: new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }), filename: baseName(file.name) + "-convertido.csv", label: "⬇️ Baixar CSV" }],
+    `(separador "${from}" → "${to}")`
+  );
+}
+
+/* --- 25. Criar ZIP --- */
+async function createZip(files) {
+  convStatus("Carregando compactador…");
+  await loadScript(LIB.jszip);
+  const zip = new JSZip();
+  files.forEach((f) => zip.file(f.name, f));
+  convStatus(`Compactando ${files.length} arquivo(s)…`);
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  const before = files.reduce((s, f) => s + f.size, 0);
+  const saved = before > 0 ? Math.max(0, Math.round((1 - blob.size / before) * 100)) : 0;
+  convDone([{ blob, filename: "arquivos.zip", label: "⬇️ Baixar ZIP" }], `(${files.length} arquivo(s), −${saved}% de tamanho)`);
+}
+
+/* --- 26. Extrair ZIP --- */
+async function extractZip(files) {
+  const file = files[0];
+  if (!/\.zip$/i.test(file.name) && !/zip/.test(file.type)) throw new Error("Escolha um arquivo .zip.");
+  convStatus("Carregando compactador…");
+  await loadScript(LIB.jszip);
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(await file.arrayBuffer());
+  } catch {
+    throw new Error("Este ZIP está corrompido ou protegido por senha.");
+  }
+  const entries = Object.values(zip.files).filter((e) => !e.dir);
+  if (!entries.length) throw new Error("Este ZIP está vazio.");
+  const MAX = 40;
+  const shown = entries.slice(0, MAX);
+  convStatus(`Extraindo ${shown.length} arquivo(s)…`);
+  const links = [];
+  for (const e of shown) {
+    const blob = await e.async("blob");
+    links.push({ blob, filename: e.name.split("/").pop(), label: `⬇️ ${e.name} (${(blob.size / 1024).toFixed(0)} KB)` });
+  }
+  convDone(links, entries.length > MAX ? `(mostrando ${MAX} de ${entries.length} arquivos)` : `(${entries.length} arquivo(s))`);
 }
 
 /* ============================================================

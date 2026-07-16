@@ -228,7 +228,19 @@
       <div id="conv-hub">
         <h1>Conversores de arquivos</h1>
         <p class="lead">Converta seus arquivos direto no navegador. <strong>🔒 Nada é enviado para servidor</strong> — tudo acontece no seu computador, com total privacidade.</p>
-        <div id="conv-grid" class="conv-grid"></div>
+
+        <div id="conv-universal" class="dropzone dz-compact" tabindex="0" role="button" aria-label="Conversor universal">
+          <p><strong>🪄 Conversor Universal:</strong> solte qualquer arquivo aqui que eu mostro o que dá para fazer com ele</p>
+          <input type="file" id="conv-universal-input" hidden>
+        </div>
+        <div id="conv-universal-result" class="hidden"></div>
+
+        <div class="conv-toolbar">
+          <input type="text" id="conv-search" placeholder="🔍 Buscar: ex. &quot;pdf para word&quot;, &quot;comprimir&quot;, &quot;zip&quot;…">
+          <div id="conv-cats" class="conv-cats"></div>
+        </div>
+
+        <div id="conv-grid"></div>
       </div>
 
       <!-- Página individual de conversor -->
