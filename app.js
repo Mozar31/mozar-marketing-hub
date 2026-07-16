@@ -84,7 +84,6 @@ const LIB = {
   html2pdf: "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
   jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
   heic2any: "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
-  qrcode: "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js",
 };
 
 async function ensurePdfjs() {
@@ -394,7 +393,8 @@ const gmbError = document.getElementById("gmb-error");
 const gmbResult = document.getElementById("gmb-result");
 
 function isMapsLink(raw) {
-  return /(?:google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
+  // aceita link do Maps E link da busca do Google (quando a pessoa acha a empresa pela pesquisa)
+  return /(?:google\.[a-z.]+\/(?:maps|search)|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
 }
 
 function gmbShowError(html, withCta) {
@@ -660,7 +660,6 @@ const CONV_CATS = [
   { id: "doc", label: "📝 Documentos" },
   { id: "dados", label: "📊 Planilhas e Dados" },
   { id: "zip", label: "🗜️ Compactados" },
-  { id: "qr", label: "🔳 QR Code" },
   { id: "util", label: "🧰 Texto e Utilitários" },
 ];
 
@@ -922,69 +921,6 @@ const CONVERTERS = [
     accept: ".zip,application/zip,application/x-zip-compressed", multiple: false,
     dropText: "Arraste o arquivo .zip aqui",
     handler: extractZip,
-  },
-  /* ---------- QR Code ---------- */
-  {
-    slug: "qr-pix", cat: "qr", icon: "💠", title: "QR Code Pix",
-    desc: "Gere o QR de cobrança Pix da sua empresa", kw: "pix pagamento cobranca banco",
-    type: "tool", runLabel: "⚡ Gerar QR Code Pix",
-    options: () => `
-      <label>Chave Pix (CPF, CNPJ, e-mail, telefone ou aleatória)
-        <input type="text" id="opt-pix-chave" placeholder="ex.: 51999999999 ou email@empresa.com" style="min-width:260px">
-      </label>
-      <label>Nome do recebedor
-        <input type="text" id="opt-pix-nome" maxlength="25" placeholder="Nome da empresa">
-      </label>
-      <label>Cidade
-        <input type="text" id="opt-pix-cidade" maxlength="15" placeholder="Porto Alegre">
-      </label>
-      <label>Valor (R$) — opcional
-        <input type="number" id="opt-pix-valor" min="0" step="0.01" placeholder="deixe vazio p/ aberto">
-      </label>`,
-    run: runQrPix,
-  },
-  {
-    slug: "qr-whatsapp", cat: "qr", icon: "💬", title: "QR Code WhatsApp",
-    desc: "QR que abre uma conversa no seu WhatsApp", kw: "whats zap conversa link",
-    type: "tool", runLabel: "⚡ Gerar QR Code",
-    options: () => `
-      <label>Número (com DDD)
-        <input type="text" id="opt-wa-num" placeholder="51999999999" inputmode="tel">
-      </label>
-      <label>Mensagem pré-preenchida — opcional
-        <input type="text" id="opt-wa-msg" placeholder="Olá! Vim pelo QR Code…" style="min-width:240px">
-      </label>`,
-    run: runQrWhatsapp,
-  },
-  {
-    slug: "qr-wifi", cat: "qr", icon: "📶", title: "QR Code Wi-Fi",
-    desc: "Clientes conectam no seu Wi-Fi apontando a câmera", kw: "wifi senha rede internet",
-    type: "tool", runLabel: "⚡ Gerar QR Code",
-    options: () => `
-      <label>Nome da rede (SSID)
-        <input type="text" id="opt-wifi-ssid" placeholder="MinhaEmpresa_WiFi">
-      </label>
-      <label>Senha
-        <input type="text" id="opt-wifi-pass" placeholder="senha da rede">
-      </label>
-      <label>Segurança
-        <select id="opt-wifi-tipo">
-          <option value="WPA">WPA/WPA2 (padrão)</option>
-          <option value="WEP">WEP</option>
-          <option value="nopass">Rede aberta (sem senha)</option>
-        </select>
-      </label>`,
-    run: runQrWifi,
-  },
-  {
-    slug: "qr-code", cat: "qr", icon: "🔳", title: "QR Code de texto ou link",
-    desc: "Qualquer texto, site ou link vira QR Code", kw: "url site link gerar",
-    type: "tool", runLabel: "⚡ Gerar QR Code",
-    options: () => `
-      <label>Conteúdo (texto ou link)
-        <input type="text" id="opt-qr-text" placeholder="https://seusite.com.br" style="min-width:280px">
-      </label>`,
-    run: runQrText,
   },
   /* ---------- Texto e Utilitários ---------- */
   {
@@ -1967,111 +1903,6 @@ async function extractZip(files) {
 /* ============================================================
    FERRAMENTAS SEM ARQUIVO (QR, cores, texto)
 ============================================================ */
-
-/* --- util QR: gera canvas a partir de um payload --- */
-async function qrToItems(payload, filename) {
-  await loadScript(LIB.qrcode);
-  const qr = qrcode(0, "M");
-  qr.addData(payload);
-  qr.make();
-  const count = qr.getModuleCount();
-  const cell = 12;
-  const margin = 4 * cell;
-  const size = count * cell + margin * 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "#000";
-  for (let r = 0; r < count; r++) {
-    for (let c = 0; c < count; c++) {
-      if (qr.isDark(r, c)) ctx.fillRect(margin + c * cell, margin + r * cell, cell, cell);
-    }
-  }
-  const blob = await canvasToBlob(canvas, "image/png");
-  return [{ blob, filename: filename + ".png", label: "⬇️ Baixar QR Code (PNG)", preview: true }];
-}
-
-function stripAccentsUpper(s, max) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 ]/g, " ").replace(/\s+/g, " ").trim().toUpperCase().slice(0, max);
-}
-
-/* --- CRC16-CCITT (0xFFFF) exigido pelo BR Code / Pix --- */
-function crc16(payload) {
-  let crc = 0xffff;
-  for (let i = 0; i < payload.length; i++) {
-    crc ^= payload.charCodeAt(i) << 8;
-    for (let b = 0; b < 8; b++) {
-      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
-    }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, "0");
-}
-
-function emv(id, value) {
-  return id + String(value.length).padStart(2, "0") + value;
-}
-
-/* --- QR Pix --- */
-async function runQrPix() {
-  const chave = document.getElementById("opt-pix-chave").value.trim();
-  const nome = stripAccentsUpper(document.getElementById("opt-pix-nome").value, 25);
-  const cidade = stripAccentsUpper(document.getElementById("opt-pix-cidade").value, 15);
-  const valorRaw = document.getElementById("opt-pix-valor").value;
-
-  if (!chave) throw new Error("Informe a chave Pix.");
-  if (!nome) throw new Error("Informe o nome do recebedor.");
-  if (!cidade) throw new Error("Informe a cidade.");
-  if (chave.length > 77) throw new Error("Chave Pix longa demais — confira.");
-
-  let p = emv("00", "01");
-  p += emv("26", emv("00", "br.gov.bcb.pix") + emv("01", chave));
-  p += emv("52", "0000") + emv("53", "986");
-  if (valorRaw) {
-    const v = parseFloat(valorRaw);
-    if (!(v > 0)) throw new Error("Valor inválido.");
-    p += emv("54", v.toFixed(2));
-  }
-  p += emv("58", "BR") + emv("59", nome) + emv("60", cidade);
-  p += emv("62", emv("05", "***"));
-  p += "6304";
-  p += crc16(p);
-
-  const items = await qrToItems(p, "pix-" + nome.toLowerCase().replace(/\s+/g, "-"));
-  items.push({ text: p, filename: "pix-copia-e-cola.txt" });
-  convDone(items, "— código \"Pix copia e cola\" incluído abaixo. Teste com o app do seu banco antes de divulgar!");
-}
-
-/* --- QR WhatsApp --- */
-async function runQrWhatsapp() {
-  let num = document.getElementById("opt-wa-num").value.replace(/\D/g, "");
-  const msg = document.getElementById("opt-wa-msg").value.trim();
-  if (!num) throw new Error("Informe o número com DDD.");
-  if (num.length <= 11 && !num.startsWith("55")) num = "55" + num;
-  const url = "https://wa.me/" + num + (msg ? "?text=" + encodeURIComponent(msg) : "");
-  convDone(await qrToItems(url, "qr-whatsapp"), `— aponta para ${url.slice(0, 60)}…`);
-}
-
-/* --- QR Wi-Fi --- */
-async function runQrWifi() {
-  const ssid = document.getElementById("opt-wifi-ssid").value.trim();
-  const pass = document.getElementById("opt-wifi-pass").value;
-  const tipo = document.getElementById("opt-wifi-tipo").value;
-  if (!ssid) throw new Error("Informe o nome da rede (SSID).");
-  if (tipo !== "nopass" && !pass) throw new Error("Informe a senha (ou escolha rede aberta).");
-  const esc = (s) => s.replace(/([\\;,":])/g, "\\$1");
-  const payload = `WIFI:T:${tipo};S:${esc(ssid)};${tipo === "nopass" ? "" : "P:" + esc(pass) + ";"};`;
-  convDone(await qrToItems(payload, "qr-wifi-" + ssid.toLowerCase().replace(/\W+/g, "-")), "— imprima e deixe no balcão 😉");
-}
-
-/* --- QR texto/link --- */
-async function runQrText() {
-  const text = document.getElementById("opt-qr-text").value.trim();
-  if (!text) throw new Error("Informe o texto ou link.");
-  convDone(await qrToItems(text, "qr-code"));
-}
 
 /* --- Conversor de cores --- */
 function parseColor(raw) {
