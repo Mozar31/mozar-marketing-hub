@@ -84,6 +84,7 @@ const LIB = {
   html2pdf: "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
   jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
   heic2any: "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
+  qrcode: "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js",
 };
 
 async function ensurePdfjs() {
@@ -659,6 +660,8 @@ const CONV_CATS = [
   { id: "doc", label: "📝 Documentos" },
   { id: "dados", label: "📊 Planilhas e Dados" },
   { id: "zip", label: "🗜️ Compactados" },
+  { id: "qr", label: "🔳 QR Code" },
+  { id: "util", label: "🧰 Texto e Utilitários" },
 ];
 
 const CONVERTERS = [
@@ -920,6 +923,144 @@ const CONVERTERS = [
     dropText: "Arraste o arquivo .zip aqui",
     handler: extractZip,
   },
+  /* ---------- QR Code ---------- */
+  {
+    slug: "qr-pix", cat: "qr", icon: "💠", title: "QR Code Pix",
+    desc: "Gere o QR de cobrança Pix da sua empresa", kw: "pix pagamento cobranca banco",
+    type: "tool", runLabel: "⚡ Gerar QR Code Pix",
+    options: () => `
+      <label>Chave Pix (CPF, CNPJ, e-mail, telefone ou aleatória)
+        <input type="text" id="opt-pix-chave" placeholder="ex.: 51999999999 ou email@empresa.com" style="min-width:260px">
+      </label>
+      <label>Nome do recebedor
+        <input type="text" id="opt-pix-nome" maxlength="25" placeholder="Nome da empresa">
+      </label>
+      <label>Cidade
+        <input type="text" id="opt-pix-cidade" maxlength="15" placeholder="Porto Alegre">
+      </label>
+      <label>Valor (R$) — opcional
+        <input type="number" id="opt-pix-valor" min="0" step="0.01" placeholder="deixe vazio p/ aberto">
+      </label>`,
+    run: runQrPix,
+  },
+  {
+    slug: "qr-whatsapp", cat: "qr", icon: "💬", title: "QR Code WhatsApp",
+    desc: "QR que abre uma conversa no seu WhatsApp", kw: "whats zap conversa link",
+    type: "tool", runLabel: "⚡ Gerar QR Code",
+    options: () => `
+      <label>Número (com DDD)
+        <input type="text" id="opt-wa-num" placeholder="51999999999" inputmode="tel">
+      </label>
+      <label>Mensagem pré-preenchida — opcional
+        <input type="text" id="opt-wa-msg" placeholder="Olá! Vim pelo QR Code…" style="min-width:240px">
+      </label>`,
+    run: runQrWhatsapp,
+  },
+  {
+    slug: "qr-wifi", cat: "qr", icon: "📶", title: "QR Code Wi-Fi",
+    desc: "Clientes conectam no seu Wi-Fi apontando a câmera", kw: "wifi senha rede internet",
+    type: "tool", runLabel: "⚡ Gerar QR Code",
+    options: () => `
+      <label>Nome da rede (SSID)
+        <input type="text" id="opt-wifi-ssid" placeholder="MinhaEmpresa_WiFi">
+      </label>
+      <label>Senha
+        <input type="text" id="opt-wifi-pass" placeholder="senha da rede">
+      </label>
+      <label>Segurança
+        <select id="opt-wifi-tipo">
+          <option value="WPA">WPA/WPA2 (padrão)</option>
+          <option value="WEP">WEP</option>
+          <option value="nopass">Rede aberta (sem senha)</option>
+        </select>
+      </label>`,
+    run: runQrWifi,
+  },
+  {
+    slug: "qr-code", cat: "qr", icon: "🔳", title: "QR Code de texto ou link",
+    desc: "Qualquer texto, site ou link vira QR Code", kw: "url site link gerar",
+    type: "tool", runLabel: "⚡ Gerar QR Code",
+    options: () => `
+      <label>Conteúdo (texto ou link)
+        <input type="text" id="opt-qr-text" placeholder="https://seusite.com.br" style="min-width:280px">
+      </label>`,
+    run: runQrText,
+  },
+  /* ---------- Texto e Utilitários ---------- */
+  {
+    slug: "conversor-cores", cat: "util", icon: "🎨", title: "Conversor de cores",
+    desc: "HEX ↔ RGB ↔ HSL ↔ CMYK + variações e contraste", kw: "hex rgb hsl cmyk paleta cor",
+    type: "tool", runLabel: "⚡ Converter cor",
+    options: () => `
+      <label>Cor (HEX ou RGB)
+        <input type="text" id="opt-cor" placeholder="#1E4FD8 ou rgb(30,79,216)" style="min-width:220px">
+      </label>`,
+    run: runColorConvert,
+  },
+  {
+    slug: "texto-base64", cat: "util", icon: "🔡", title: "Texto ↔ Base64",
+    desc: "Codifique e decodifique textos em Base64", kw: "codificar decodificar encode decode",
+    type: "tool", runLabel: "⚡ Converter",
+    options: () => `
+      <label>Operação
+        <select id="opt-b64-op">
+          <option value="enc">Texto → Base64</option>
+          <option value="dec">Base64 → Texto</option>
+        </select>
+      </label>
+      <label style="flex:1 1 100%">Conteúdo
+        <textarea id="opt-b64-text" rows="4" style="width:100%;background:var(--navy);color:var(--text);border:1px solid rgba(159,172,209,0.25);border-radius:10px;padding:10px;font-family:var(--font-mono);font-size:0.8rem" placeholder="Cole o texto aqui…"></textarea>
+      </label>`,
+    run: runBase64Text,
+  },
+  {
+    slug: "url-encode", cat: "util", icon: "🌐", title: "URL Encode / Decode",
+    desc: "Converta textos para o formato de URL e de volta", kw: "percent encoding link parametro",
+    type: "tool", runLabel: "⚡ Converter",
+    options: () => `
+      <label>Operação
+        <select id="opt-url-op">
+          <option value="enc">Texto → URL Encode</option>
+          <option value="dec">URL Encode → Texto</option>
+        </select>
+      </label>
+      <label style="flex:1 1 100%">Conteúdo
+        <textarea id="opt-url-text" rows="4" style="width:100%;background:var(--navy);color:var(--text);border:1px solid rgba(159,172,209,0.25);border-radius:10px;padding:10px;font-family:var(--font-mono);font-size:0.8rem" placeholder="Cole o texto aqui…"></textarea>
+      </label>`,
+    run: runUrlEncode,
+  },
+  {
+    slug: "formatar-json", cat: "util", icon: "🧾", title: "Formatar e validar JSON",
+    desc: "Formate, minifique e encontre erros no JSON", kw: "validar minificar pretty json",
+    type: "tool", runLabel: "⚡ Processar JSON",
+    options: () => `
+      <label>Operação
+        <select id="opt-json-op">
+          <option value="fmt">Formatar (bonito)</option>
+          <option value="min">Minificar (uma linha)</option>
+          <option value="val">Só validar</option>
+        </select>
+      </label>
+      <label style="flex:1 1 100%">JSON
+        <textarea id="opt-json-text" rows="6" style="width:100%;background:var(--navy);color:var(--text);border:1px solid rgba(159,172,209,0.25);border-radius:10px;padding:10px;font-family:var(--font-mono);font-size:0.8rem" placeholder='{"exemplo": true}'></textarea>
+      </label>`,
+    run: runJsonTool,
+  },
+  {
+    slug: "hash-arquivo", cat: "util", icon: "🔐", title: "Hash de arquivo",
+    desc: "Calcule SHA-256, SHA-1 ou SHA-512 de qualquer arquivo", kw: "checksum sha md5 integridade verificar",
+    accept: "*/*", multiple: false,
+    dropText: "Arraste qualquer arquivo para calcular o hash",
+    options: () => `
+      <label>Algoritmo
+        <select id="opt-hash-algo">
+          <option value="SHA-256">SHA-256 (padrão)</option>
+          <option value="SHA-1">SHA-1</option>
+          <option value="SHA-512">SHA-512</option>
+        </select>
+      </label>`,
+    handler: hashFile,
+  },
 ];
 
 let activeConverter = null;
@@ -982,7 +1123,7 @@ document.getElementById("conv-back").addEventListener("click", () => { location.
 function convertersForFile(file) {
   const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
   return CONVERTERS.filter((c) => {
-    if (c.accept === "*/*") return false; // criar-zip aceita tudo; oferecido à parte
+    if (!c.accept || c.accept === "*/*") return false; // ferramentas sem arquivo ou que aceitam tudo
     return c.accept.toLowerCase().split(",").some((a) => a.trim() === ext);
   });
 }
@@ -1041,12 +1182,20 @@ function showConverter(slug) {
 
   document.getElementById("conv-title").textContent = conv.icon + " " + conv.title;
   document.getElementById("conv-desc").textContent = conv.desc + ".";
-  document.getElementById("conv-drop-text").innerHTML = "<strong>" + conv.dropText + "</strong>";
 
-  const input = document.getElementById("conv-input");
-  input.value = "";
-  input.accept = conv.accept;
-  input.multiple = !!conv.multiple;
+  const isTool = conv.type === "tool";
+  document.getElementById("conv-drop").classList.toggle("hidden", isTool);
+  const runBtn = document.getElementById("conv-run");
+  runBtn.classList.toggle("hidden", !isTool);
+  if (isTool) runBtn.textContent = conv.runLabel || "⚡ Gerar";
+
+  if (!isTool) {
+    document.getElementById("conv-drop-text").innerHTML = "<strong>" + conv.dropText + "</strong>";
+    const input = document.getElementById("conv-input");
+    input.value = "";
+    input.accept = conv.accept;
+    input.multiple = !!conv.multiple;
+  }
 
   const opts = document.getElementById("conv-options");
   if (conv.options) {
@@ -1119,9 +1268,17 @@ function convDone(links, note) {
         list.appendChild(a);
       }
     } else {
+      const url = URL.createObjectURL(item.blob);
+      if (item.preview) {
+        const img = el("img");
+        img.src = url;
+        img.alt = item.filename;
+        Object.assign(img.style, { maxWidth: "260px", borderRadius: "12px", background: "#fff", padding: "12px" });
+        list.appendChild(img);
+      }
       const a = el("a", "btn btn-primary");
       a.textContent = item.label || "⬇️ Baixar " + item.filename;
-      a.href = URL.createObjectURL(item.blob);
+      a.href = url;
       a.download = item.filename;
       list.appendChild(a);
     }
@@ -1144,6 +1301,16 @@ convDrop.addEventListener("drop", (e) => {
 });
 convInput.addEventListener("change", () => {
   if (convInput.files.length) handleConvFiles([...convInput.files]);
+});
+
+document.getElementById("conv-run").addEventListener("click", async () => {
+  if (!activeConverter || typeof activeConverter.run !== "function") return;
+  convReset();
+  try {
+    await activeConverter.run();
+  } catch (err) {
+    convError(err && err.message ? err.message : "Não foi possível gerar. Confira os campos.");
+  }
 });
 
 async function handleConvFiles(files) {
@@ -1795,6 +1962,246 @@ async function extractZip(files) {
     links.push({ blob, filename: e.name.split("/").pop(), label: `⬇️ ${e.name} (${(blob.size / 1024).toFixed(0)} KB)` });
   }
   convDone(links, entries.length > MAX ? `(mostrando ${MAX} de ${entries.length} arquivos)` : `(${entries.length} arquivo(s))`);
+}
+
+/* ============================================================
+   FERRAMENTAS SEM ARQUIVO (QR, cores, texto)
+============================================================ */
+
+/* --- util QR: gera canvas a partir de um payload --- */
+async function qrToItems(payload, filename) {
+  await loadScript(LIB.qrcode);
+  const qr = qrcode(0, "M");
+  qr.addData(payload);
+  qr.make();
+  const count = qr.getModuleCount();
+  const cell = 12;
+  const margin = 4 * cell;
+  const size = count * cell + margin * 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#000";
+  for (let r = 0; r < count; r++) {
+    for (let c = 0; c < count; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect(margin + c * cell, margin + r * cell, cell, cell);
+    }
+  }
+  const blob = await canvasToBlob(canvas, "image/png");
+  return [{ blob, filename: filename + ".png", label: "⬇️ Baixar QR Code (PNG)", preview: true }];
+}
+
+function stripAccentsUpper(s, max) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 ]/g, " ").replace(/\s+/g, " ").trim().toUpperCase().slice(0, max);
+}
+
+/* --- CRC16-CCITT (0xFFFF) exigido pelo BR Code / Pix --- */
+function crc16(payload) {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let b = 0; b < 8; b++) {
+      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+
+function emv(id, value) {
+  return id + String(value.length).padStart(2, "0") + value;
+}
+
+/* --- QR Pix --- */
+async function runQrPix() {
+  const chave = document.getElementById("opt-pix-chave").value.trim();
+  const nome = stripAccentsUpper(document.getElementById("opt-pix-nome").value, 25);
+  const cidade = stripAccentsUpper(document.getElementById("opt-pix-cidade").value, 15);
+  const valorRaw = document.getElementById("opt-pix-valor").value;
+
+  if (!chave) throw new Error("Informe a chave Pix.");
+  if (!nome) throw new Error("Informe o nome do recebedor.");
+  if (!cidade) throw new Error("Informe a cidade.");
+  if (chave.length > 77) throw new Error("Chave Pix longa demais — confira.");
+
+  let p = emv("00", "01");
+  p += emv("26", emv("00", "br.gov.bcb.pix") + emv("01", chave));
+  p += emv("52", "0000") + emv("53", "986");
+  if (valorRaw) {
+    const v = parseFloat(valorRaw);
+    if (!(v > 0)) throw new Error("Valor inválido.");
+    p += emv("54", v.toFixed(2));
+  }
+  p += emv("58", "BR") + emv("59", nome) + emv("60", cidade);
+  p += emv("62", emv("05", "***"));
+  p += "6304";
+  p += crc16(p);
+
+  const items = await qrToItems(p, "pix-" + nome.toLowerCase().replace(/\s+/g, "-"));
+  items.push({ text: p, filename: "pix-copia-e-cola.txt" });
+  convDone(items, "— código \"Pix copia e cola\" incluído abaixo. Teste com o app do seu banco antes de divulgar!");
+}
+
+/* --- QR WhatsApp --- */
+async function runQrWhatsapp() {
+  let num = document.getElementById("opt-wa-num").value.replace(/\D/g, "");
+  const msg = document.getElementById("opt-wa-msg").value.trim();
+  if (!num) throw new Error("Informe o número com DDD.");
+  if (num.length <= 11 && !num.startsWith("55")) num = "55" + num;
+  const url = "https://wa.me/" + num + (msg ? "?text=" + encodeURIComponent(msg) : "");
+  convDone(await qrToItems(url, "qr-whatsapp"), `— aponta para ${url.slice(0, 60)}…`);
+}
+
+/* --- QR Wi-Fi --- */
+async function runQrWifi() {
+  const ssid = document.getElementById("opt-wifi-ssid").value.trim();
+  const pass = document.getElementById("opt-wifi-pass").value;
+  const tipo = document.getElementById("opt-wifi-tipo").value;
+  if (!ssid) throw new Error("Informe o nome da rede (SSID).");
+  if (tipo !== "nopass" && !pass) throw new Error("Informe a senha (ou escolha rede aberta).");
+  const esc = (s) => s.replace(/([\\;,":])/g, "\\$1");
+  const payload = `WIFI:T:${tipo};S:${esc(ssid)};${tipo === "nopass" ? "" : "P:" + esc(pass) + ";"};`;
+  convDone(await qrToItems(payload, "qr-wifi-" + ssid.toLowerCase().replace(/\W+/g, "-")), "— imprima e deixe no balcão 😉");
+}
+
+/* --- QR texto/link --- */
+async function runQrText() {
+  const text = document.getElementById("opt-qr-text").value.trim();
+  if (!text) throw new Error("Informe o texto ou link.");
+  convDone(await qrToItems(text, "qr-code"));
+}
+
+/* --- Conversor de cores --- */
+function parseColor(raw) {
+  raw = raw.trim().toLowerCase();
+  let m = raw.match(/^#?([0-9a-f]{6})$/);
+  if (m) {
+    const n = parseInt(m[1], 16);
+    return [n >> 16, (n >> 8) & 255, n & 255];
+  }
+  m = raw.match(/^#?([0-9a-f]{3})$/);
+  if (m) return [...m[1]].map((c) => parseInt(c + c, 16));
+  m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) return [Math.min(255, +m[1]), Math.min(255, +m[2]), Math.min(255, +m[3])];
+  return null;
+}
+
+async function runColorConvert() {
+  const rgb = parseColor(document.getElementById("opt-cor").value);
+  if (!rgb) throw new Error('Cor inválida. Use HEX (#1E4FD8) ou RGB "rgb(30,79,216)".');
+  const [r, g, b] = rgb;
+  const hex = "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+
+  const rf = r / 255, gf = g / 255, bf = b / 255;
+  const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+  const l = (max + min) / 2;
+  let h = 0, s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === rf) h = ((gf - bf) / d + (gf < bf ? 6 : 0)) * 60;
+    else if (max === gf) h = ((bf - rf) / d + 2) * 60;
+    else h = ((rf - gf) / d + 4) * 60;
+  }
+  const k = 1 - Math.max(rf, gf, bf);
+  const cmyk = k >= 1 ? [0, 0, 0, 100] : [(1 - rf - k) / (1 - k), (1 - gf - k) / (1 - k), (1 - bf - k) / (1 - k), k].map((v) => Math.round(v * 100));
+
+  const lum = (c) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(b);
+  const contrastWhite = ((1.05) / (L + 0.05)).toFixed(2);
+  const contrastBlack = ((L + 0.05) / 0.05).toFixed(2);
+
+  const shade = (f) => "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v * f)))).map((v) => v.toString(16).padStart(2, "0")).join("");
+  const tint = (f) => "#" + [r, g, b].map((v) => Math.round(v + (255 - v) * f)).map((v) => v.toString(16).padStart(2, "0")).join("");
+  const variations = [shade(0.4), shade(0.7), hex, tint(0.35), tint(0.7)];
+
+  document.getElementById("conv-status").classList.add("hidden");
+  const done = document.getElementById("conv-done");
+  done.innerHTML = `
+    <div class="done-banner">✅ Cor convertida!</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:12px 0">
+      <div style="width:90px;height:90px;border-radius:12px;background:${hex};border:2px solid rgba(255,255,255,0.2)"></div>
+      <div style="font-family:var(--font-mono);font-size:0.85rem;line-height:2">
+        <strong>HEX:</strong> ${hex}<br>
+        <strong>RGB:</strong> rgb(${r}, ${g}, ${b})<br>
+        <strong>HSL:</strong> hsl(${Math.round(h)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)<br>
+        <strong>CMYK:</strong> ${cmyk.join("%, ")}%
+      </div>
+    </div>
+    <p style="font-size:0.85rem;color:var(--text-dim)">Variações (escura → clara):</p>
+    <div style="display:flex;gap:6px;margin:8px 0 14px">${variations.map((v) => `<div title="${v.toUpperCase()}" style="width:52px;height:40px;border-radius:8px;background:${v};cursor:pointer" onclick="navigator.clipboard.writeText('${v.toUpperCase()}')"></div>`).join("")}</div>
+    <p style="font-size:0.85rem;color:var(--text-dim)">Contraste (acessibilidade): texto branco <strong>${contrastWhite}:1</strong> ${contrastWhite >= 4.5 ? "✅" : "⚠️ abaixo de 4.5"} · texto preto <strong>${contrastBlack}:1</strong> ${contrastBlack >= 4.5 ? "✅" : "⚠️ abaixo de 4.5"}</p>`;
+  done.classList.remove("hidden");
+}
+
+/* --- Base64 texto --- */
+async function runBase64Text() {
+  const op = document.getElementById("opt-b64-op").value;
+  const text = document.getElementById("opt-b64-text").value;
+  if (!text) throw new Error("Cole o conteúdo no campo acima.");
+  let out;
+  if (op === "enc") {
+    out = btoa(String.fromCharCode(...new TextEncoder().encode(text)));
+  } else {
+    try {
+      const bin = atob(text.trim().replace(/\s+/g, ""));
+      out = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+    } catch {
+      throw new Error("Este conteúdo não é Base64 válido.");
+    }
+  }
+  convDone([{ text: out, filename: op === "enc" ? "base64.txt" : "decodificado.txt" }]);
+}
+
+/* --- URL encode/decode --- */
+async function runUrlEncode() {
+  const op = document.getElementById("opt-url-op").value;
+  const text = document.getElementById("opt-url-text").value;
+  if (!text) throw new Error("Cole o conteúdo no campo acima.");
+  let out;
+  if (op === "enc") out = encodeURIComponent(text);
+  else {
+    try { out = decodeURIComponent(text.replace(/\+/g, "%20")); } catch { throw new Error("Este conteúdo não é URL-encode válido."); }
+  }
+  convDone([{ text: out, filename: "convertido.txt" }]);
+}
+
+/* --- Formatar/validar JSON --- */
+async function runJsonTool() {
+  const op = document.getElementById("opt-json-op").value;
+  const text = document.getElementById("opt-json-text").value.trim();
+  if (!text) throw new Error("Cole o JSON no campo acima.");
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    const m = String(e.message).match(/position (\d+)/);
+    let hint = "";
+    if (m) {
+      const pos = +m[1];
+      const linha = text.slice(0, pos).split("\n").length;
+      hint = ` (por volta da linha ${linha})`;
+    }
+    throw new Error("JSON inválido" + hint + ": " + e.message);
+  }
+  if (op === "val") {
+    convDone([{ text: "✅ JSON válido! " + (Array.isArray(data) ? data.length + " item(ns) na lista." : Object.keys(data || {}).length + " chave(s) no objeto."), filename: null }]);
+    return;
+  }
+  const out = op === "fmt" ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+  convDone([{ text: out, filename: op === "fmt" ? "formatado.json" : "minificado.json" }]);
+}
+
+/* --- Hash de arquivo --- */
+async function hashFile(files) {
+  const file = files[0];
+  const algo = document.getElementById("opt-hash-algo").value;
+  convStatus(`Calculando ${algo}…`);
+  const digest = await crypto.subtle.digest(algo, await file.arrayBuffer());
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  convDone([{ text: hex, filename: baseName(file.name) + "-" + algo.toLowerCase().replace("-", "") + ".txt" }], `(${algo} de "${file.name}")`);
 }
 
 /* ============================================================
