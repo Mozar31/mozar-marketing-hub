@@ -2,7 +2,7 @@
 
 const WHATSAPP = "5551983493659";
 const PAGESPEED_KEY = "AIzaSyCE2W5SN58BNxlE_q7FOqpqz89wKCRmAkY"; // chave gratuita da API PageSpeed (restrita ao domínio hub.consiginvest.com)
-const GMB_ANALYZE = "https://dinastia-n8n-webhook.u9dep8.easypanel.host/webhook/gmb-analyze";
+const GMB_ANALYZE = "https://n8n.vpsmozar.plusnetworks.com.br/webhook/gmb-analyze";
 
 /* ============================================================
    NAVEGAÇÃO (abas + rotas por hash)
