@@ -6,7 +6,8 @@
 //  - deduplicar por URL canônica
 //  - guardar fonte, autor e data
 //  - resumo curto, NUNCA o artigo inteiro
-//  - nada entra publicado: status 'pending' aguarda revisão humana
+//  - notícia de marketing publica automático (status 'published') — decisão do
+//    Mozar em 20/07/2026; a restrição de compliance da XP é só para investimentos
 
 const LIMITE_RESUMO = 400;
 
@@ -133,8 +134,11 @@ for (const item of $input.all()) {
       categoria: fonte.categoria || 'ia',
       // Fonte oficial do fornecedor = anúncio. Qualquer outra = análise.
       tipo: fonte.confianca === 'oficial' ? 'anuncio' : 'analise',
-      // NADA entra publicado automaticamente. Revisão humana decide.
-      status: 'pending',
+      // Publica automático: o Mozar decidiu (20/07/2026) que notícia de MARKETING
+      // não precisa de aprovação. A restrição de compliance da XP é só para
+      // conteúdo de INVESTIMENTOS — não se aplica aqui. A allowlist de fontes em
+      // news_sources é o controle editorial; um item ruim pode ir para 'archived'.
+      status: 'published',
     },
   });
 }

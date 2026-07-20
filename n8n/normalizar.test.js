@@ -62,7 +62,7 @@ console.log("\n1. Toda notícia recebe a fonte certa (o bug da execução 1667)"
   ok("categoria vem da fonte", r[1].json.categoria === "seo", r[1].json.categoria);
   ok("fonte oficial vira 'anuncio'", r[0].json.tipo === "anuncio", r[0].json.tipo);
   ok("fonte editorial vira 'analise'", r[4].json.tipo === "analise", r[4].json.tipo);
-  ok("nada entra publicado", r.every((x) => x.json.status === "pending"));
+  ok("notícia de marketing entra publicada (decisão do Mozar)", r.every((x) => x.json.status === "published"));
 }
 
 console.log("\n2. Domínio desconhecido é descartado, não gravado sem fonte");
