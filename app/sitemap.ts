@@ -22,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: t.featured ? 0.8 : 0.6,
     })),
+    { url: `${SITE_URL}/novidades/`, lastModified: now, changeFrequency: "daily", priority: 0.6 },
     { url: `${SITE_URL}/sobre/`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/privacidade/`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];

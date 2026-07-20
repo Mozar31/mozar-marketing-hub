@@ -159,6 +159,13 @@ export function Header() {
             ))}
 
             <Link
+              href="/novidades/"
+              className="rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
+            >
+              Novidades
+            </Link>
+
+            <Link
               href="/sobre/"
               className="ml-auto rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
             >
@@ -187,6 +194,11 @@ export function Header() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/novidades/" className="block rounded-lg px-3 py-2.5 font-display font-semibold text-ink-300" onClick={() => setMobileOpen(false)}>
+                  Novidades
+                </Link>
+              </li>
               <li className="pt-2">
                 <a
                   href={waLink("Olá, vim através do Hub da Consig Invest e gostaria de mais informações...")}
