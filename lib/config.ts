@@ -16,6 +16,19 @@ export const PAGESPEED_KEY = "AIzaSyCE2W5SN58BNxlE_q7FOqpqz89wKCRmAkY";
  */
 export const GMB_ANALYZE = "https://n8n.vpsmozar.plusnetworks.com.br/webhook/gmb-analyze";
 
+/**
+ * Supabase — conteúdo editorial (notícias).
+ *
+ * A publishable key é pública POR DESIGN: ela só consegue fazer o que as políticas
+ * de RLS permitem, e no nosso schema isso é exatamente uma coisa — ler `news_items`
+ * com status 'published' e `news_sources` ativas. Nenhuma escrita, nenhum rascunho.
+ *
+ * A secret key (sb_secret_…) dá acesso total e vive SOMENTE na credencial do n8n,
+ * no servidor. Ela nunca entra neste repositório. Ver SECURITY.md.
+ */
+export const SUPABASE_URL = "https://bcpkwmzglbeguywsmdxm.supabase.co";
+export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_tdWjgITgLJBulrYNwU7X1Q_r27pLZmV";
+
 export const waLink = (msg: string): string =>
   `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
 

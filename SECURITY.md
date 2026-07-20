@@ -30,6 +30,31 @@ O workflow aplica **CORS restrito a `hub.consiginvest.com`**, **cache de 7 dias*
 **cota de 30 consultas/dia**. Assim, mesmo que alguém descubra a URL do webhook, não
 consegue nem extrair a chave nem torrar o crédito.
 
+### Supabase — publishable vs secret
+
+O projeto usa o sistema novo de chaves do Supabase:
+
+| Chave | Onde vive | O que consegue fazer |
+|---|---|---|
+| `sb_publishable_…` | `lib/config.ts`, visível no navegador | Apenas o que o RLS permite: ler notícia com `status='published'` e fonte ativa |
+| `sb_secret_…` | **Somente** na credencial do n8n, no servidor | Acesso total — ignora RLS |
+
+A publishable key é pública por design. O que a torna segura é o RLS, não o sigilo — e isso
+foi **verificado na prática** em 20/07/2026, com a chave real contra a API:
+
+```
+GET  news_sources          → 200, devolve as fontes ativas          ✅ esperado
+GET  news_items            → 200, [] (nada publicado ainda)         ✅ esperado
+POST news_items            → 42501 "violates row-level security"    ✅ bloqueado
+DELETE news_sources        → 0 linhas afetadas                      ✅ bloqueado
+```
+
+⚠️ Atenção ao interpretar o DELETE: o PostgREST responde **204 mesmo quando não apaga nada**.
+Não tratar 204 como "a exclusão funcionou" — confirmar com `Prefer: return=representation`,
+que devolve as linhas realmente afetadas (no teste acima, `[]`).
+
+A secret key nunca foi lida nem gravada por automação: quem a coloca no n8n é o operador.
+
 ## O que nunca versionar
 
 - Chaves com faturamento ativo (Places, Maps, qualquer coisa que gere custo)
