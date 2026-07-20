@@ -11,10 +11,25 @@ const fs = require("fs");
 const path = require("path");
 
 const codigo = fs.readFileSync(path.join(__dirname, "normalizar.js"), "utf8");
+
+/**
+ * Roda o código como o n8n roda.
+ *
+ * CRÍTICO: o sandbox do Code node NÃO tem `URL`, `fetch`, `require` nem `process`.
+ * Passamos esses nomes como parâmetros undefined para que fiquem indisponíveis
+ * dentro do código, exatamente como lá. Sem isso, o teste passa aqui e quebra em
+ * produção — foi o que aconteceu na execução 1669: `new URL()` lançava
+ * "URL is not defined", o catch engolia, e as 1.154 notícias sumiam em silêncio.
+ */
 const rodar = (itens, fontes) => {
   const $input = { all: () => itens.map((json) => ({ json })) };
   const $ = () => ({ all: () => fontes.map((json) => ({ json })) });
-  return new Function("$input", "$", "console", codigo)($input, $, { log: () => {} });
+  const fn = new Function(
+    "$input", "$", "console",
+    "URL", "fetch", "require", "process", "globalThis", "window",
+    codigo
+  );
+  return fn($input, $, { log: () => {} }, undefined, undefined, undefined, undefined, undefined, undefined);
 };
 
 const FONTES = [

@@ -10,32 +10,44 @@
 
 const LIMITE_RESUMO = 400;
 
+// ATENÇÃO: o sandbox do Code node do n8n NÃO expõe o construtor `URL`.
+// A versão anterior usava `new URL(...)` dentro de try/catch e o catch engolia
+// "URL is not defined" em silêncio — nenhum domínio era reconhecido e as 1.154
+// notícias eram descartadas (execução 1669). Tudo aqui é feito com regex.
+
+const RE_URL = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]+)([^?#]*)(?:\?([^#]*))?/i;
+
+/** Hostname em minúsculas, sem credenciais, porta nem "www.". */
 function hostDe(u) {
-  try {
-    return new URL(String(u).trim()).hostname.replace(/^www\./, '').toLowerCase();
-  } catch {
-    return '';
-  }
+  const m = String(u || '').trim().match(RE_URL);
+  if (!m) return '';
+  return m[2]
+    .toLowerCase()
+    .replace(/^[^@]*@/, '')
+    .replace(/:\d+$/, '')
+    .replace(/^www\./, '');
 }
+
+const RE_PARAM_CAMPANHA = /^(utm_|fbclid|gclid|mc_cid|mc_eid|ref$|source$)/i;
 
 /** Remove parâmetros de campanha e normaliza para comparar URLs. */
 function normalizarUrl(bruta) {
-  try {
-    const u = new URL(String(bruta).trim());
-    u.hash = '';
-    u.hostname = u.hostname.toLowerCase().replace(/^www\./, '');
-    u.protocol = 'https:';
-    for (const p of [...u.searchParams.keys()]) {
-      if (/^(utm_|fbclid|gclid|mc_cid|mc_eid|ref|source)/i.test(p)) u.searchParams.delete(p);
-    }
-    // A barra final fica no PATH, antes da query — tirar do pathname, não da string toda.
-    u.pathname = u.pathname.replace(/\/+$/, '');
-    // Ordem dos parâmetros não pode mudar a identidade da URL.
-    u.searchParams.sort();
-    return u.toString();
-  } catch {
-    return String(bruta || '').trim();
-  }
+  const s = String(bruta || '').trim();
+  if (!s) return '';
+  const m = s.match(RE_URL);
+  if (!m) return s;
+
+  const host = hostDe(s);
+  // A barra final fica no PATH, antes da query.
+  const caminho = (m[3] || '').replace(/\/+$/, '');
+  const params = (m[4] || '')
+    .split('&')
+    .filter(Boolean)
+    .filter((p) => !RE_PARAM_CAMPANHA.test(p.split('=')[0]));
+  // Ordem dos parâmetros não pode mudar a identidade da URL.
+  params.sort();
+
+  return 'https://' + host + caminho + (params.length ? '?' + params.join('&') : '');
 }
 
 function limparTexto(html) {
