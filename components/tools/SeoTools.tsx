@@ -108,7 +108,26 @@ export function SerpPreview() {
 /* ════════════════════════════════════════════════════════════
    Gerador de dados estruturados (P0)
    ════════════════════════════════════════════════════════════ */
-type SchemaType = "LocalBusiness" | "FAQPage" | "Product" | "Article";
+type SchemaType =
+  | "LocalBusiness"
+  | "Organization"
+  | "FAQPage"
+  | "Product"
+  | "Article"
+  | "Event"
+  | "BreadcrumbList"
+  | "SoftwareApplication";
+
+const SCHEMA_LABELS: Record<SchemaType, string> = {
+  LocalBusiness: "Empresa local",
+  Organization: "Organização",
+  FAQPage: "Perguntas frequentes",
+  Product: "Produto",
+  Article: "Artigo",
+  Event: "Evento",
+  BreadcrumbList: "Caminho (breadcrumb)",
+  SoftwareApplication: "Aplicativo / software",
+};
 
 export function SchemaGenerator() {
   const [type, setType] = useState<SchemaType>("LocalBusiness");
@@ -152,12 +171,69 @@ export function SchemaGenerator() {
           ? { "@type": "Offer", price: f.price, priceCurrency: "BRL", availability: "https://schema.org/InStock" }
           : undefined,
       });
-    } else {
+    } else if (type === "Article") {
       Object.assign(base, {
         headline: f.name || undefined,
         description: f.desc || undefined,
         author: f.author ? { "@type": "Person", name: f.author } : undefined,
         datePublished: f.date || undefined,
+      });
+    } else if (type === "Organization") {
+      Object.assign(base, {
+        name: f.name || undefined,
+        url: f.url || undefined,
+        logo: f.logo || undefined,
+        telephone: f.phone || undefined,
+        // sameAs = perfis oficiais (uma URL por linha)
+        sameAs: f.sameAs
+          ? f.sameAs.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
+          : undefined,
+      });
+    } else if (type === "Event") {
+      Object.assign(base, {
+        name: f.name || undefined,
+        startDate: f.start || undefined,
+        endDate: f.end || undefined,
+        eventAttendanceMode: f.online
+          ? "https://schema.org/OnlineEventAttendanceMode"
+          : "https://schema.org/OfflineEventAttendanceMode",
+        location: f.online
+          ? (f.url ? { "@type": "VirtualLocation", url: f.url } : undefined)
+          : (f.place || f.city)
+            ? { "@type": "Place", name: f.place || undefined, address: f.city || undefined }
+            : undefined,
+        offers: f.price
+          ? { "@type": "Offer", price: f.price, priceCurrency: "BRL", url: f.url || undefined }
+          : undefined,
+      });
+    } else if (type === "BreadcrumbList") {
+      const items: { name: string; url: string }[] = [];
+      for (let i = 1; i <= 4; i++) {
+        const name = f[`n${i}`];
+        const url = f[`u${i}`];
+        if (name) items.push({ name, url: url || "" });
+      }
+      Object.assign(base, {
+        itemListElement: items.map((it, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: it.name,
+          item: it.url || undefined,
+        })),
+      });
+    } else if (type === "SoftwareApplication") {
+      Object.assign(base, {
+        name: f.name || undefined,
+        applicationCategory: f.category || undefined,
+        operatingSystem: f.os || undefined,
+        offers: {
+          "@type": "Offer",
+          price: f.price || "0",
+          priceCurrency: "BRL",
+        },
+        aggregateRating: (f.rating && f.count)
+          ? { "@type": "AggregateRating", ratingValue: f.rating, ratingCount: f.count }
+          : undefined,
       });
     }
     const clean = JSON.parse(JSON.stringify(base, (_k, v) => (v === undefined || v === "" ? undefined : v)));
@@ -182,14 +258,14 @@ export function SchemaGenerator() {
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {(["LocalBusiness", "FAQPage", "Product", "Article"] as SchemaType[]).map((t) => (
+        {(Object.keys(SCHEMA_LABELS) as SchemaType[]).map((t) => (
           <button
             key={t} type="button" onClick={() => { setType(t); setF({}); }}
             className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
               type === t ? "border-action-500 bg-action-500/20 text-ink-100" : "border-white/15 text-ink-300 hover:border-info-500/50"
             }`}
           >
-            {t === "LocalBusiness" ? "Empresa local" : t === "FAQPage" ? "Perguntas frequentes" : t === "Product" ? "Produto" : "Artigo"}
+            {SCHEMA_LABELS[t]}
           </button>
         ))}
       </div>
@@ -231,6 +307,58 @@ export function SchemaGenerator() {
             <Field label="Autor" value={f.author || ""} onChange={(v) => set("author", v)} />
             <Field label="Data de publicação" value={f.date || ""} onChange={(v) => set("date", v)} placeholder="2026-07-19" />
             <Field label="Resumo" value={f.desc || ""} onChange={(v) => set("desc", v)} textarea />
+          </>
+        )}
+        {type === "Organization" && (
+          <>
+            <Field label="Nome da organização" value={f.name || ""} onChange={(v) => set("name", v)} placeholder="Consig Invest" />
+            <Field label="Site" value={f.url || ""} onChange={(v) => set("url", v)} placeholder="https://consiginvest.com" />
+            <Field label="Logo (URL da imagem)" value={f.logo || ""} onChange={(v) => set("logo", v)} placeholder="https://.../logo.png" />
+            <Field label="Telefone" value={f.phone || ""} onChange={(v) => set("phone", v)} placeholder="+55 51 98349-3659" />
+            <Field label="Perfis oficiais (um por linha)" value={f.sameAs || ""} onChange={(v) => set("sameAs", v)} textarea placeholder={"https://instagram.com/suaempresa\nhttps://linkedin.com/company/suaempresa"} hint="Instagram, LinkedIn, Facebook…" />
+          </>
+        )}
+        {type === "Event" && (
+          <>
+            <Field label="Nome do evento" value={f.name || ""} onChange={(v) => set("name", v)} placeholder="Workshop de Marketing" />
+            <Field label="Início" value={f.start || ""} onChange={(v) => set("start", v)} placeholder="2026-08-15T19:00" hint="Data e hora (ISO)" />
+            <Field label="Fim" value={f.end || ""} onChange={(v) => set("end", v)} placeholder="2026-08-15T21:00" hint="Opcional" />
+            <Field label="Preço (R$)" value={f.price || ""} onChange={(v) => set("price", v)} placeholder="0 para gratuito" />
+            <label className="flex items-center gap-2 text-xs font-semibold text-ink-300 sm:col-span-2">
+              <input type="checkbox" checked={!!f.online} onChange={(e) => set("online", e.target.checked ? "1" : "")} className="h-4 w-4" />
+              Evento online
+            </label>
+            {f.online ? (
+              <Field label="Link do evento online" value={f.url || ""} onChange={(v) => set("url", v)} placeholder="https://zoom.us/j/..." />
+            ) : (
+              <>
+                <Field label="Local" value={f.place || ""} onChange={(v) => set("place", v)} placeholder="Centro de Eventos" />
+                <Field label="Endereço / cidade" value={f.city || ""} onChange={(v) => set("city", v)} placeholder="São Leopoldo, RS" />
+              </>
+            )}
+          </>
+        )}
+        {type === "BreadcrumbList" && (
+          <>
+            <p className="text-xs text-ink-400 sm:col-span-2">
+              A trilha de navegação da página, do geral ao específico. Preencha ao menos 2 níveis.
+            </p>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="contents">
+                <Field label={`Nível ${i} — nome`} value={f[`n${i}`] || ""} onChange={(v) => set(`n${i}`, v)} placeholder={i === 1 ? "Início" : i === 2 ? "Ferramentas" : ""} />
+                <Field label={`Nível ${i} — link`} value={f[`u${i}`] || ""} onChange={(v) => set(`u${i}`, v)} placeholder="https://…" hint={i === 4 ? "Último pode ficar sem link" : undefined} />
+              </div>
+            ))}
+          </>
+        )}
+        {type === "SoftwareApplication" && (
+          <>
+            <Field label="Nome do app" value={f.name || ""} onChange={(v) => set("name", v)} placeholder="Meu Aplicativo" />
+            <Field label="Categoria" value={f.category || ""} onChange={(v) => set("category", v)} placeholder="BusinessApplication" hint="Ex.: BusinessApplication, GameApplication" />
+            <Field label="Sistema" value={f.os || ""} onChange={(v) => set("os", v)} placeholder="Android, iOS, Web" />
+            <Field label="Preço (R$)" value={f.price || ""} onChange={(v) => set("price", v)} placeholder="0 para gratuito" />
+            <Field label="Nota média" value={f.rating || ""} onChange={(v) => set("rating", v)} placeholder="4.8" hint="Opcional — só se for real" />
+            <Field label="Nº de avaliações" value={f.count || ""} onChange={(v) => set("count", v)} placeholder="120" hint="Opcional" />
           </>
         )}
       </div>
