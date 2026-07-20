@@ -321,8 +321,8 @@ export function SchemaGenerator() {
         {type === "Event" && (
           <>
             <Field label="Nome do evento" value={f.name || ""} onChange={(v) => set("name", v)} placeholder="Workshop de Marketing" />
-            <Field label="Início" value={f.start || ""} onChange={(v) => set("start", v)} placeholder="2026-08-15T19:00" hint="Data e hora (ISO)" />
-            <Field label="Fim" value={f.end || ""} onChange={(v) => set("end", v)} placeholder="2026-08-15T21:00" hint="Opcional" />
+            <Field label="Início" value={f.start || ""} onChange={(v) => set("start", v)} type="datetime-local" hint="Escolha o dia e a hora no calendário" />
+            <Field label="Fim" value={f.end || ""} onChange={(v) => set("end", v)} type="datetime-local" hint="Opcional" />
             <Field label="Preço (R$)" value={f.price || ""} onChange={(v) => set("price", v)} placeholder="0 para gratuito" />
             <label className="flex items-center gap-2 text-xs font-semibold text-ink-300 sm:col-span-2">
               <input type="checkbox" checked={!!f.online} onChange={(e) => set("online", e.target.checked ? "1" : "")} className="h-4 w-4" />
@@ -384,11 +384,11 @@ export function SchemaGenerator() {
 }
 
 function Field({
-  label, value, onChange, placeholder, hint, textarea, counter,
+  label, value, onChange, placeholder, hint, textarea, counter, type,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; hint?: string; textarea?: boolean;
-  counter?: { len: number; limit: number };
+  counter?: { len: number; limit: number }; type?: string;
 }) {
   const over = counter ? counter.len > counter.limit : false;
   return (
@@ -404,7 +404,7 @@ function Field({
       {textarea ? (
         <textarea className="input-base resize-y" rows={3} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
       ) : (
-        <input type="text" className="input-base" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+        <input type={type ?? "text"} className="input-base" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
       )}
       {hint && <span className="font-normal text-[0.7rem] text-ink-400">{hint}</span>}
     </label>
