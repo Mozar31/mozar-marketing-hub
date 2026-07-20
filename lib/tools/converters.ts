@@ -45,6 +45,44 @@ export interface FileToolDef {
 const PDF_ACCEPT = "application/pdf,.pdf";
 const IMG_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 
+/**
+ * Processa várias imagens com a mesma operação e devolve um ZIP.
+ * Usado quando o usuário envia mais de um arquivo (o caso de 1 arquivo
+ * continua tratado por cada conversor, com preview e nota própria).
+ */
+async function loteImagensZip(
+  files: File[],
+  progress: ProgressFn,
+  zipBase: string,
+  processarUma: (file: File) => Promise<{ blob: Blob; filename: string }>,
+  mostrarEconomia = false
+): Promise<ToolOutput> {
+  await loadScript(LIB.jszip);
+  const zip = new window.JSZip();
+  const usados = new Set<string>();
+  let totalIn = 0, totalOut = 0, feito = 0;
+  for (const file of files) {
+    progress(`Processando ${++feito} de ${files.length}…`);
+    const { blob, filename } = await processarUma(file);
+    // garante nomes únicos dentro do ZIP
+    let nome = filename, i = 2;
+    while (usados.has(nome)) { nome = filename.replace(/(\.[^.]+)$/, `-${i}$1`); i++; }
+    usados.add(nome);
+    totalIn += file.size;
+    totalOut += blob.size;
+    zip.file(nome, blob);
+  }
+  progress("Gerando ZIP…");
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  const economia = totalIn > 0 ? Math.max(0, Math.round((1 - totalOut / totalIn) * 100)) : 0;
+  return {
+    files: [{ blob, filename: `${zipBase}.zip`, label: `Baixar ${files.length} imagens (ZIP)` }],
+    note: mostrarEconomia
+      ? `${files.length} imagens · ${(totalIn / 1024).toFixed(0)} KB → ${(totalOut / 1024).toFixed(0)} KB (${economia}% menor)`
+      : `${files.length} imagens processadas.`,
+  };
+}
+
 export const FILE_TOOLS: Record<string, FileToolDef> = {
   /* ═══════════ PDF ═══════════ */
   "pdf-para-word": {
@@ -402,7 +440,8 @@ export const FILE_TOOLS: Record<string, FileToolDef> = {
   /* ═══════════ Imagens ═══════════ */
   "converter-imagem": {
     accept: IMG_ACCEPT,
-    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    multiple: true,
+    dropText: "Arraste uma ou várias imagens aqui",
     fields: [
       {
         id: "format",
@@ -417,33 +456,41 @@ export const FILE_TOOLS: Record<string, FileToolDef> = {
       },
     ],
     async run(files, opts, progress) {
-      const file = files[0]!;
       const format = opts.format || "image/png";
       const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[format] || "png";
-      progress("Convertendo…");
-      const img = await loadImageFile(file);
-      const blob = await canvasToBlob(canvasFromImage(img, format === "image/jpeg"), format, 0.92);
-      return {
-        files: [{ blob, filename: `${baseName(file.name)}.${ext}`, label: `Baixar .${ext.toUpperCase()}`, preview: true }],
+      const uma = async (file: File) => {
+        const img = await loadImageFile(file);
+        const blob = await canvasToBlob(canvasFromImage(img, format === "image/jpeg"), format, 0.92);
+        return { blob, filename: `${baseName(file.name)}.${ext}` };
       };
+      if (files.length > 1) return loteImagensZip(files, progress, `imagens-${ext}`, uma);
+      progress("Convertendo…");
+      const { blob, filename } = await uma(files[0]!);
+      return { files: [{ blob, filename, label: `Baixar .${ext.toUpperCase()}`, preview: true }] };
     },
   },
 
   "comprimir-imagem": {
     accept: IMG_ACCEPT,
-    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    multiple: true,
+    dropText: "Arraste uma ou várias imagens aqui",
     fields: [
       { id: "quality", label: "Qualidade", type: "range", default: "70", min: 30, max: 95, hint: "Menor qualidade = arquivo mais leve." },
     ],
     async run(files, opts, progress) {
-      const file = files[0]!;
       const q = (parseInt(opts.quality || "70", 10) || 70) / 100;
+      const uma = async (file: File) => {
+        const img = await loadImageFile(file);
+        const blob = await canvasToBlob(canvasFromImage(img, true), "image/jpeg", q);
+        return { blob, filename: `${baseName(file.name)}-comprimida.jpg` };
+      };
+      if (files.length > 1) return loteImagensZip(files, progress, "imagens-comprimidas", uma, true);
       progress("Comprimindo…");
-      const img = await loadImageFile(file);
-      const blob = await canvasToBlob(canvasFromImage(img, true), "image/jpeg", q);
+      const file = files[0]!;
+      const { blob, filename } = await uma(file);
       const saved = file.size > 0 ? Math.max(0, Math.round((1 - blob.size / file.size) * 100)) : 0;
       return {
-        files: [{ blob, filename: `${baseName(file.name)}-comprimida.jpg`, label: "Baixar imagem comprimida", preview: true }],
+        files: [{ blob, filename, label: "Baixar imagem comprimida", preview: true }],
         note: `${(file.size / 1024).toFixed(0)} KB → ${(blob.size / 1024).toFixed(0)} KB (${saved}% menor)`,
       };
     },
@@ -451,33 +498,41 @@ export const FILE_TOOLS: Record<string, FileToolDef> = {
 
   "redimensionar-imagem": {
     accept: IMG_ACCEPT,
-    dropText: "Arraste a imagem aqui ou clique para selecionar",
+    multiple: true,
+    dropText: "Arraste uma ou várias imagens aqui",
     fields: [
       { id: "width", label: "Largura (px)", type: "number", placeholder: "ex.: 1080", min: 1 },
       { id: "height", label: "Altura (px)", type: "number", placeholder: "automática", min: 1, hint: "Deixe vazio para manter a proporção." },
     ],
     async run(files, opts, progress) {
-      const file = files[0]!;
       const w = parseInt(opts.width || "0", 10) || 0;
       const h = parseInt(opts.height || "0", 10) || 0;
       if (!w && !h) throw new Error("Informe a largura ou a altura desejada.");
-      progress("Redimensionando…");
-      const img = await loadImageFile(file);
-      const ratio = img.naturalWidth / img.naturalHeight;
-      const outW = w || Math.round(h * ratio);
-      const outH = h || Math.round(w / ratio);
-      const canvas = document.createElement("canvas");
-      canvas.width = outW;
-      canvas.height = outH;
-      const ctx = canvas.getContext("2d")!;
-      ctx.imageSmoothingQuality = "high";
-      const jpg = isJpeg(file);
-      if (jpg) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, outW, outH); }
-      ctx.drawImage(img, 0, 0, outW, outH);
-      const blob = await canvasToBlob(canvas, jpg ? "image/jpeg" : "image/png", 0.92);
-      return {
-        files: [{ blob, filename: `${baseName(file.name)}-${outW}x${outH}.${jpg ? "jpg" : "png"}`, label: `Baixar ${outW}×${outH}`, preview: true }],
+      const uma = async (file: File) => {
+        const img = await loadImageFile(file);
+        const ratio = img.naturalWidth / img.naturalHeight;
+        const outW = w || Math.round(h * ratio);
+        const outH = h || Math.round(w / ratio);
+        const canvas = document.createElement("canvas");
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext("2d")!;
+        ctx.imageSmoothingQuality = "high";
+        const jpg = isJpeg(file);
+        if (jpg) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, outW, outH); }
+        ctx.drawImage(img, 0, 0, outW, outH);
+        const blob = await canvasToBlob(canvas, jpg ? "image/jpeg" : "image/png", 0.92);
+        return { blob, filename: `${baseName(file.name)}-${outW}x${outH}.${jpg ? "jpg" : "png"}`, outW, outH };
       };
+      if (files.length > 1) {
+        return loteImagensZip(files, progress, "imagens-redimensionadas", async (f) => {
+          const { blob, filename } = await uma(f);
+          return { blob, filename };
+        });
+      }
+      progress("Redimensionando…");
+      const { blob, filename, outW, outH } = await uma(files[0]!);
+      return { files: [{ blob, filename, label: `Baixar ${outW}×${outH}`, preview: true }] };
     },
   },
 
