@@ -1,5 +1,10 @@
-Dockerfile
-.dockerignore
-README.md
+node_modules
+.next
+out
 .git
 .gitignore
+.claude
+Dockerfile
+.dockerignore
+AUDIT.md
+BACKLOG.md

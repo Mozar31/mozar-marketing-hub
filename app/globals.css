@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/**
+ * Design tokens — Especificação §6 "Direção visual e sistema de interface".
+ * Base navy #071225/#0D1B36, azul de ação #2563EB, ciano informativo #12B8C4.
+ * Contraste validado para WCAG 2.2 AA (§17).
+ */
+@theme {
+  --color-navy-900: #071225;
+  --color-navy-800: #0d1b36;
+  --color-navy-700: #142347;
+  --color-navy-600: #1b2d59;
+
+  --color-action-600: #1d4ed8;
+  --color-action-500: #2563eb;
+  --color-action-400: #3b82f6;
+
+  --color-info-500: #12b8c4;
+  --color-info-400: #22d3ee;
+
+  --color-ink-100: #f1f5fd;
+  --color-ink-200: #dbe4f5;
+  --color-ink-300: #a9b8d8;
+  --color-ink-400: #7d8fb3;
+
+  --color-ok-500: #17a673;
+  --color-ok-400: #34d399;
+  --color-warn-500: #d97706;
+  --color-warn-400: #fbbf24;
+  --color-bad-500: #dc2626;
+  --color-bad-400: #f87171;
+
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+}
+
+:root {
+  --surface: var(--color-navy-800);
+  --surface-2: var(--color-navy-700);
+  --line: rgb(255 255 255 / 0.09);
+  --line-strong: rgb(255 255 255 / 0.16);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background-color: var(--color-navy-900);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgb(37 99 235 / 0.16), transparent),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(18 184 196 / 0.06), transparent);
+  background-attachment: fixed;
+  color: var(--color-ink-100);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+/* ── Acessibilidade: foco visível em tudo (WCAG 2.2 AA) ── */
+:focus-visible {
+  outline: 2px solid var(--color-info-400);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip link — exigido pelo Checkpoint 1 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-action-500);
+  color: white;
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* ── Componentes base ── */
+@utility card-surface {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+@utility input-base {
+  width: 100%;
+  background-color: var(--color-navy-900);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  color: var(--color-ink-100);
+  font-size: 0.95rem;
+  transition: border-color 0.15s;
+}
+
+input.input-base::placeholder,
+textarea.input-base::placeholder {
+  color: var(--color-ink-400);
+}
+
+.input-base:focus {
+  border-color: var(--color-info-500);
+  outline: none;
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-action-500);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.7rem 1.35rem;
+  border-radius: 10px;
+  transition: background-color 0.15s, transform 0.15s;
+}
+.btn-primary:hover { background-color: var(--color-action-400); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@utility btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background-color: rgb(18 184 196 / 0.1);
+  border: 1px solid rgb(18 184 196 / 0.35);
+  color: var(--color-info-400);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  transition: background-color 0.15s;
+}
+.btn-ghost:hover { background-color: rgb(18 184 196 / 0.2); }
+
+.mono { font-family: var(--font-mono); }
+
+/* Marca d'água de scroll horizontal em tabelas no mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
