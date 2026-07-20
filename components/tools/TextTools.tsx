@@ -1,8 +1,54 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { loadImageFile } from "@/lib/tools/runtime";
 
 /* ═══════════ Conversor de cores e contraste ═══════════ */
+
+const toHex = (r: number, g: number, b: number) =>
+  "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
+
+/**
+ * Extrai as cores dominantes de uma imagem, localmente (canvas).
+ * Reduz a imagem, agrupa cores parecidas e devolve as mais frequentes e distintas.
+ */
+async function extrairPaleta(file: File, quantas = 6): Promise<string[]> {
+  const img = await loadImageFile(file);
+  const size = 80;
+  const canvas = document.createElement("canvas");
+  const escala = Math.min(size / img.naturalWidth, size / img.naturalHeight, 1);
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * escala));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * escala));
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // agrupa por cor arredondada (reduz espaço de cor) e conta frequência
+  const buckets = new Map<string, { r: number; g: number; b: number; n: number }>();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3]! < 200) continue; // ignora transparente
+    const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+    const key = `${r >> 5},${g >> 5},${b >> 5}`;
+    const cur = buckets.get(key) ?? { r: 0, g: 0, b: 0, n: 0 };
+    cur.r += r; cur.g += g; cur.b += b; cur.n++;
+    buckets.set(key, cur);
+  }
+  const ordenadas = [...buckets.values()]
+    .map((c) => ({ r: c.r / c.n, g: c.g / c.n, b: c.b / c.n, n: c.n }))
+    .sort((a, b) => b.n - a.n);
+
+  // escolhe cores suficientemente diferentes entre si
+  const escolhidas: { r: number; g: number; b: number }[] = [];
+  for (const c of ordenadas) {
+    const longe = escolhidas.every(
+      (e) => Math.abs(e.r - c.r) + Math.abs(e.g - c.g) + Math.abs(e.b - c.b) > 60
+    );
+    if (longe) escolhidas.push(c);
+    if (escolhidas.length >= quantas) break;
+  }
+  return escolhidas.map((c) => toHex(c.r, c.g, c.b));
+}
+
 
 function parseColor(raw: string): [number, number, number] | null {
   const s = raw.trim().toLowerCase();
@@ -25,7 +71,32 @@ const lum = (c: number) => {
 
 export function ColorStudio() {
   const [input, setInput] = useState("#2563EB");
+  const [paleta, setPaleta] = useState<string[] | null>(null);
+  const [paletaErro, setPaletaErro] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState<string | null>(null);
   const rgb = parseColor(input);
+
+  const copiar = async (texto: string, marca: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(marca);
+      setTimeout(() => setCopiado(null), 1600);
+    } catch { /* clipboard indisponível */ }
+  };
+
+  const enviarImagem = async (file?: File) => {
+    if (!file) return;
+    setPaletaErro(null);
+    if (!file.type.startsWith("image/")) {
+      setPaletaErro("Envie um arquivo de imagem (JPG, PNG, WebP).");
+      return;
+    }
+    try {
+      setPaleta(await extrairPaleta(file));
+    } catch {
+      setPaletaErro("Não foi possível ler as cores desta imagem.");
+    }
+  };
 
   const data = useMemo(() => {
     if (!rgb) return null;
@@ -78,6 +149,39 @@ export function ColorStudio() {
         />
       </div>
 
+      {/* Extrair paleta de uma imagem */}
+      <div className="card-surface mt-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-ink-300">Tirar cores de uma imagem</p>
+          <label className="btn-ghost cursor-pointer text-xs">
+            Enviar imagem
+            <input
+              type="file" hidden accept="image/*"
+              onChange={(e) => enviarImagem(e.target.files?.[0])}
+            />
+          </label>
+        </div>
+        <p className="mt-1 text-[0.68rem] text-ink-400">
+          Envie um logo ou foto e extraia as cores principais — nada sai do navegador.
+        </p>
+        {paletaErro && <p className="mt-2 text-xs text-warn-400" role="alert">⚠️ {paletaErro}</p>}
+        {paleta && paleta.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {paleta.map((cor) => (
+              <button
+                key={cor} type="button" title={`Usar ${cor}`}
+                onClick={() => setInput(cor)}
+                className="flex flex-col items-center gap-1"
+                aria-label={`Usar a cor ${cor}`}
+              >
+                <span className="h-10 w-14 rounded-lg border border-white/15 transition hover:scale-105" style={{ background: cor }} />
+                <span className="mono text-[0.6rem] text-ink-400">{cor}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!data ? (
         <p className="mt-4 rounded-lg border border-warn-500/50 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert">
           ⚠️ Cor inválida. Use HEX (#1E4FD8) ou RGB — rgb(30,79,216).
@@ -124,6 +228,45 @@ export function ColorStudio() {
               </div>
             </div>
           </div>
+
+          {/* Exportar tokens (CSS + JSON) a partir da escala de variações */}
+          {(() => {
+            const escala = [900, 700, 500, 300, 100];
+            const pares = data.variations.map((v, i) => [escala[i]!, v] as const);
+            const css = `:root {\n${pares.map(([k, v]) => `  --brand-${k}: ${v};`).join("\n")}\n}`;
+            const jsonTokens = JSON.stringify(
+              { brand: Object.fromEntries(pares.map(([k, v]) => [String(k), v])) },
+              null, 2
+            );
+            return (
+              <div className="card-surface mt-5 p-5">
+                <p className="font-display text-sm font-bold">Exportar como tokens</p>
+                <p className="mt-1 text-xs text-ink-400">
+                  A cor e suas variações em escala 100–900, prontas para colar no seu projeto.
+                </p>
+                <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[0.7rem] font-semibold text-ink-300">CSS variables</span>
+                      <button type="button" onClick={() => copiar(css, "css")} className="text-[0.68rem] font-semibold text-info-400 hover:underline">
+                        {copiado === "css" ? "Copiado ✓" : "Copiar"}
+                      </button>
+                    </div>
+                    <textarea readOnly value={css} rows={7} className="input-base mono resize-y text-[0.68rem]" aria-label="CSS variables" />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[0.7rem] font-semibold text-ink-300">JSON design tokens</span>
+                      <button type="button" onClick={() => copiar(jsonTokens, "json")} className="text-[0.68rem] font-semibold text-info-400 hover:underline">
+                        {copiado === "json" ? "Copiado ✓" : "Copiar"}
+                      </button>
+                    </div>
+                    <textarea readOnly value={jsonTokens} rows={7} className="input-base mono resize-y text-[0.68rem]" aria-label="JSON design tokens" />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
