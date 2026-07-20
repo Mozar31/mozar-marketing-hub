@@ -24,16 +24,16 @@ A spec define **60 módulos**: 21 P0, 30 P1, 7 P2 e 2 P3 (matriz da pág. 19).
 | 51 | Limpador de CSV, contatos e listas | `/ferramentas/limpar-lista-de-contatos` |
 | 52 | Central de conversores preservada | 27 rotas em `conversores.ts` |
 
-### 🟡 Parciais — dá para completar sem autorização (6)
+### 🟢 Parciais completadas em 20/07/2026 (6)
 
-| # | Módulo | O que falta |
-|---|---|---|
-| 11 | Velocidade e Core Web Vitals 2.0 | Dados de campo (CrUX API) separados do Lighthouse; hoje só laboratório. Comparar antes/depois. |
-| 18 | Dados estruturados | Faltam os tipos Organization, BreadcrumbList, Event e SoftwareApplication |
-| 24 | Google Business Profile 2.0 | Score por dimensão (completude, reputação, atividade, conversão) e **desambiguação de filiais** |
-| 27 | Simulador de ROI 2.0 | TikTok e LinkedIn; cenários conservador/base/agressivo; análise de sensibilidade; link compartilhável |
-| 40 | Estúdio de cores | Passes AA/AAA por tamanho de texto; export de tokens CSS/JSON; extração de paleta de imagem; harmonias |
-| 41 | Estúdio de imagem | Processamento em lote com ZIP; comparação antes/depois; Web Worker para não travar a interface |
+| # | Módulo | O que foi feito | O que ainda falta |
+|---|---|---|---|
+| 11 | Velocidade 2.0 | ✅ dados reais de campo (CrUX: LCP/INP/CLS) separados do laboratório, com estado de "dados insuficientes" | comparar antes/depois |
+| 18 | Dados estruturados | ✅ + Organization, BreadcrumbList, Event, SoftwareApplication (8 tipos) | — |
+| 24 | Ficha do Google 2.0 | ✅ nota 0–100 por dimensão (completude, reputação, atividade, conversão) | **desambiguação de filiais** (bug antigo — precisa do n8n/Places + testar com links reais na conta consig.investmkt; fazer com o Mozar junto) |
+| 27 | Simulador de ROI 2.0 | ✅ TikTok + LinkedIn; cenários conservador/base/agressivo (sensibilidade) | link compartilhável |
+| 40 | Estúdio de cores | ✅ export de tokens CSS/JSON; extração de paleta de imagem | passes AA/AAA por tamanho; harmonias |
+| 41 | Estúdio de imagem | ✅ lote com ZIP (converter/comprimir/redimensionar) | comparação antes/depois; Web Worker |
 
 ### ⛔ Não iniciados (6) — todos dependem de uma decisão
 
