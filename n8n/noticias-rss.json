@@ -16,7 +16,10 @@
       "name": "Todo dia as 07h",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-360, 0]
+      "position": [
+        -360,
+        0
+      ]
     },
     {
       "parameters": {
@@ -26,8 +29,14 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id,nome,feed_url,categoria,confianca" },
-            { "name": "ativo", "value": "eq.true" }
+            {
+              "name": "select",
+              "value": "id,nome,feed_url,site_url,categoria,confianca"
+            },
+            {
+              "name": "ativo",
+              "value": "eq.true"
+            }
           ]
         },
         "options": {}
@@ -36,7 +45,10 @@
       "name": "Buscar fontes ativas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-140, 0]
+      "position": [
+        -140,
+        0
+      ]
     },
     {
       "parameters": {
@@ -49,19 +61,25 @@
       "name": "Ler RSS",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.1,
-      "position": [80, 0],
+      "position": [
+        80,
+        0
+      ],
       "onError": "continueRegularOutput",
       "notes": "onError=continue: um feed fora do ar nao derruba a coleta dos outros."
     },
     {
       "parameters": {
-        "jsCode": "// Normaliza cada item do RSS para o formato de news_items.\n// Regras da especificacao (cap. 12):\n//  - deduplicar por URL canonica\n//  - guardar fonte, autor e data\n//  - resumo curto, NUNCA o artigo inteiro\n//  - nada entra publicado: status 'pending' aguarda revisao humana\n\nconst LIMITE_RESUMO = 400;\n\n/** Remove parametros de campanha e normaliza para comparar URLs. */\nfunction normalizarUrl(bruta) {\n  try {\n    const u = new URL(String(bruta).trim());\n    u.hash = '';\n    u.hostname = u.hostname.toLowerCase().replace(/^www\\./, '');\n    u.protocol = 'https:';\n    for (const p of [...u.searchParams.keys()]) {\n      if (/^(utm_|fbclid|gclid|mc_cid|mc_eid|ref|source)/i.test(p)) u.searchParams.delete(p);\n    }\n    // A barra final fica no PATH, antes da query — tirar do pathname, nao da string toda.\n    u.pathname = u.pathname.replace(/\\/+$/, '');\n    // Ordem dos parametros nao pode mudar a identidade da URL.\n    u.searchParams.sort();\n    return u.toString();\n  } catch {\n    return String(bruta || '').trim();\n  }\n}\n\nfunction limparTexto(html) {\n  return String(html || '')\n    .replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nconst saida = [];\n\nfor (const item of $input.all()) {\n  const rss = item.json;\n\n  // A fonte vem do node anterior, pareada pelo indice do item.\n  let fonte = {};\n  try {\n    fonte = $('Buscar fontes ativas').all()[item.pairedItem?.item ?? 0]?.json ?? {};\n  } catch {\n    fonte = {};\n  }\n\n  const link = rss.link || rss.guid || '';\n  if (!link) continue;\n\n  const titulo = limparTexto(rss.title);\n  if (!titulo) continue;\n\n  const dataBruta = rss.isoDate || rss.pubDate || rss.published || null;\n  const publicado = dataBruta ? new Date(dataBruta) : null;\n  if (!publicado || isNaN(publicado.getTime())) continue;\n\n  // So interessa noticia recente: nada com mais de 45 dias.\n  const dias = (Date.now() - publicado.getTime()) / 86400000;\n  if (dias > 45) continue;\n\n  const resumoBruto = limparTexto(rss.contentSnippet || rss.summary || rss.content || '');\n  const resumo = resumoBruto.length > LIMITE_RESUMO\n    ? resumoBruto.slice(0, LIMITE_RESUMO).replace(/\\s+\\S*$/, '') + '...'\n    : resumoBruto;\n\n  saida.push({\n    json: {\n      source_id: fonte.id ?? null,\n      titulo: titulo.slice(0, 300),\n      resumo: resumo || null,\n      canonical_url: link,\n      url_hash: normalizarUrl(link),\n      autor: limparTexto(rss.creator || rss.author || '') || null,\n      publicado_em: publicado.toISOString(),\n      categoria: fonte.categoria || 'ia',\n      // Fonte oficial do fornecedor = anuncio. Qualquer outra = analise.\n      tipo: fonte.confianca === 'oficial' ? 'anuncio' : 'analise',\n      // NADA entra publicado automaticamente. Revisao humana decide.\n      status: 'pending'\n    }\n  });\n}\n\nreturn saida;"
+        "jsCode": "// Código do node \"Normalizar e filtrar\" do fluxo n8n/noticias-rss.json.\n// Fica em arquivo próprio para ser legível e testável; `node n8n/build.js`\n// injeta este conteúdo dentro do JSON do workflow.\n//\n// Regras da especificação (cap. 12):\n//  - deduplicar por URL canônica\n//  - guardar fonte, autor e data\n//  - resumo curto, NUNCA o artigo inteiro\n//  - nada entra publicado: status 'pending' aguarda revisão humana\n\nconst LIMITE_RESUMO = 400;\n\nfunction hostDe(u) {\n  try {\n    return new URL(String(u).trim()).hostname.replace(/^www\\./, '').toLowerCase();\n  } catch {\n    return '';\n  }\n}\n\n/** Remove parâmetros de campanha e normaliza para comparar URLs. */\nfunction normalizarUrl(bruta) {\n  try {\n    const u = new URL(String(bruta).trim());\n    u.hash = '';\n    u.hostname = u.hostname.toLowerCase().replace(/^www\\./, '');\n    u.protocol = 'https:';\n    for (const p of [...u.searchParams.keys()]) {\n      if (/^(utm_|fbclid|gclid|mc_cid|mc_eid|ref|source)/i.test(p)) u.searchParams.delete(p);\n    }\n    // A barra final fica no PATH, antes da query — tirar do pathname, não da string toda.\n    u.pathname = u.pathname.replace(/\\/+$/, '');\n    // Ordem dos parâmetros não pode mudar a identidade da URL.\n    u.searchParams.sort();\n    return u.toString();\n  } catch {\n    return String(bruta || '').trim();\n  }\n}\n\nfunction limparTexto(html) {\n  return String(html || '')\n    .replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\n// Índice das fontes por domínio.\n//\n// NÃO usar pairedItem aqui: o node de RSS transforma 8 entradas em ~1.150 saídas\n// e o pareamento automático não sobrevive a isso. Bug real observado na execução\n// 1667 — 115 de 123 itens chegaram com source_id nulo e o banco recusou todos.\nconst fontes = $('Buscar fontes ativas').all().map((i) => i.json);\nconst porHost = new Map();\nfor (const f of fontes) {\n  for (const cand of [f.site_url, f.feed_url]) {\n    const h = hostDe(cand);\n    if (h && !porHost.has(h)) porHost.set(h, f);\n  }\n}\n\nfunction acharFonte(link) {\n  const h = hostDe(link);\n  if (!h) return null;\n  if (porHost.has(h)) return porHost.get(h);\n  // fallback: subdomínio ou domínio pai (ex.: news.openai.com ↔ openai.com)\n  for (const [host, f] of porHost) {\n    if (h.endsWith('.' + host) || host.endsWith('.' + h)) return f;\n  }\n  return null;\n}\n\nconst saida = [];\nlet semFonte = 0;\n\nfor (const item of $input.all()) {\n  const rss = item.json;\n\n  const link = rss.link || rss.guid || '';\n  if (!link) continue;\n\n  const titulo = limparTexto(rss.title);\n  if (!titulo) continue;\n\n  const dataBruta = rss.isoDate || rss.pubDate || rss.published || null;\n  const publicado = dataBruta ? new Date(dataBruta) : null;\n  if (!publicado || isNaN(publicado.getTime())) continue;\n\n  // Só interessa notícia recente: nada com mais de 45 dias.\n  const dias = (Date.now() - publicado.getTime()) / 86400000;\n  if (dias > 45) continue;\n\n  // Sem fonte identificada não grava: source_id é NOT NULL no banco.\n  const fonte = acharFonte(link);\n  if (!fonte) {\n    semFonte++;\n    continue;\n  }\n\n  const resumoBruto = limparTexto(rss.contentSnippet || rss.summary || rss.content || '');\n  const resumo =\n    resumoBruto.length > LIMITE_RESUMO\n      ? resumoBruto.slice(0, LIMITE_RESUMO).replace(/\\s+\\S*$/, '') + '...'\n      : resumoBruto;\n\n  saida.push({\n    json: {\n      source_id: fonte.id,\n      titulo: titulo.slice(0, 300),\n      resumo: resumo || null,\n      canonical_url: link,\n      url_hash: normalizarUrl(link),\n      autor: limparTexto(rss.creator || rss.author || '') || null,\n      publicado_em: publicado.toISOString(),\n      categoria: fonte.categoria || 'ia',\n      // Fonte oficial do fornecedor = anúncio. Qualquer outra = análise.\n      tipo: fonte.confianca === 'oficial' ? 'anuncio' : 'analise',\n      // NADA entra publicado automaticamente. Revisão humana decide.\n      status: 'pending',\n    },\n  });\n}\n\nif (semFonte) console.log('Itens descartados por domínio desconhecido:', semFonte);\n\nreturn saida;\n"
       },
       "id": "normalizar",
       "name": "Normalizar e filtrar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 0]
+      "position": [
+        300,
+        0
+      ]
     },
     {
       "parameters": {
@@ -72,14 +90,23 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "on_conflict", "value": "url_hash" }
+            {
+              "name": "on_conflict",
+              "value": "url_hash"
+            }
           ]
         },
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Prefer", "value": "resolution=ignore-duplicates,return=minimal" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Prefer",
+              "value": "resolution=ignore-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -91,23 +118,58 @@
       "name": "Gravar no Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [520, 0],
+      "position": [
+        520,
+        0
+      ],
       "onError": "continueRegularOutput",
       "notes": "on_conflict=url_hash + ignore-duplicates: noticia repetida e descartada em silencio, sem erro."
     }
   ],
   "connections": {
     "Todo dia as 07h": {
-      "main": [[{ "node": "Buscar fontes ativas", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Buscar fontes ativas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Buscar fontes ativas": {
-      "main": [[{ "node": "Ler RSS", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Ler RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Ler RSS": {
-      "main": [[{ "node": "Normalizar e filtrar", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalizar e filtrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalizar e filtrar": {
-      "main": [[{ "node": "Gravar no Supabase", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gravar no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
