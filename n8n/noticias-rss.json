@@ -1,0 +1,118 @@
+{
+  "name": "Hub - Coleta de noticias (RSS)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "trigger-diario",
+      "name": "Todo dia as 07h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-360, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://bcpkwmzglbeguywsmdxm.supabase.co/rest/v1/news_sources",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id,nome,feed_url,categoria,confianca" },
+            { "name": "ativo", "value": "eq.true" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "buscar-fontes",
+      "name": "Buscar fontes ativas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-140, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feed_url }}",
+        "options": {
+          "ignoreSSL": false
+        }
+      },
+      "id": "ler-rss",
+      "name": "Ler RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [80, 0],
+      "onError": "continueRegularOutput",
+      "notes": "onError=continue: um feed fora do ar nao derruba a coleta dos outros."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza cada item do RSS para o formato de news_items.\n// Regras da especificacao (cap. 12):\n//  - deduplicar por URL canonica\n//  - guardar fonte, autor e data\n//  - resumo curto, NUNCA o artigo inteiro\n//  - nada entra publicado: status 'pending' aguarda revisao humana\n\nconst LIMITE_RESUMO = 400;\n\n/** Remove parametros de campanha e normaliza para comparar URLs. */\nfunction normalizarUrl(bruta) {\n  try {\n    const u = new URL(String(bruta).trim());\n    u.hash = '';\n    u.hostname = u.hostname.toLowerCase().replace(/^www\\./, '');\n    u.protocol = 'https:';\n    for (const p of [...u.searchParams.keys()]) {\n      if (/^(utm_|fbclid|gclid|mc_cid|mc_eid|ref|source)/i.test(p)) u.searchParams.delete(p);\n    }\n    // A barra final fica no PATH, antes da query — tirar do pathname, nao da string toda.\n    u.pathname = u.pathname.replace(/\\/+$/, '');\n    // Ordem dos parametros nao pode mudar a identidade da URL.\n    u.searchParams.sort();\n    return u.toString();\n  } catch {\n    return String(bruta || '').trim();\n  }\n}\n\nfunction limparTexto(html) {\n  return String(html || '')\n    .replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nconst saida = [];\n\nfor (const item of $input.all()) {\n  const rss = item.json;\n\n  // A fonte vem do node anterior, pareada pelo indice do item.\n  let fonte = {};\n  try {\n    fonte = $('Buscar fontes ativas').all()[item.pairedItem?.item ?? 0]?.json ?? {};\n  } catch {\n    fonte = {};\n  }\n\n  const link = rss.link || rss.guid || '';\n  if (!link) continue;\n\n  const titulo = limparTexto(rss.title);\n  if (!titulo) continue;\n\n  const dataBruta = rss.isoDate || rss.pubDate || rss.published || null;\n  const publicado = dataBruta ? new Date(dataBruta) : null;\n  if (!publicado || isNaN(publicado.getTime())) continue;\n\n  // So interessa noticia recente: nada com mais de 45 dias.\n  const dias = (Date.now() - publicado.getTime()) / 86400000;\n  if (dias > 45) continue;\n\n  const resumoBruto = limparTexto(rss.contentSnippet || rss.summary || rss.content || '');\n  const resumo = resumoBruto.length > LIMITE_RESUMO\n    ? resumoBruto.slice(0, LIMITE_RESUMO).replace(/\\s+\\S*$/, '') + '...'\n    : resumoBruto;\n\n  saida.push({\n    json: {\n      source_id: fonte.id ?? null,\n      titulo: titulo.slice(0, 300),\n      resumo: resumo || null,\n      canonical_url: link,\n      url_hash: normalizarUrl(link),\n      autor: limparTexto(rss.creator || rss.author || '') || null,\n      publicado_em: publicado.toISOString(),\n      categoria: fonte.categoria || 'ia',\n      // Fonte oficial do fornecedor = anuncio. Qualquer outra = analise.\n      tipo: fonte.confianca === 'oficial' ? 'anuncio' : 'analise',\n      // NADA entra publicado automaticamente. Revisao humana decide.\n      status: 'pending'\n    }\n  });\n}\n\nreturn saida;"
+      },
+      "id": "normalizar",
+      "name": "Normalizar e filtrar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bcpkwmzglbeguywsmdxm.supabase.co/rest/v1/news_items",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "on_conflict", "value": "url_hash" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Prefer", "value": "resolution=ignore-duplicates,return=minimal" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "gravar",
+      "name": "Gravar no Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 0],
+      "onError": "continueRegularOutput",
+      "notes": "on_conflict=url_hash + ignore-duplicates: noticia repetida e descartada em silencio, sem erro."
+    }
+  ],
+  "connections": {
+    "Todo dia as 07h": {
+      "main": [[{ "node": "Buscar fontes ativas", "type": "main", "index": 0 }]]
+    },
+    "Buscar fontes ativas": {
+      "main": [[{ "node": "Ler RSS", "type": "main", "index": 0 }]]
+    },
+    "Ler RSS": {
+      "main": [[{ "node": "Normalizar e filtrar", "type": "main", "index": 0 }]]
+    },
+    "Normalizar e filtrar": {
+      "main": [[{ "node": "Gravar no Supabase", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}
