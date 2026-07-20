@@ -162,6 +162,62 @@ function SemFicha() {
   );
 }
 
+/** Nota 0–100 por dimensão (Módulo 24: completude, reputação, atividade, conversão). */
+function dimensoes(d: Ficha) {
+  // Completude — dados básicos preenchidos
+  const basicos = [d.telefone, d.site, d.endereco, d.categoria, d.dias_com_horario >= 7];
+  const completude = Math.round((basicos.filter(Boolean).length / basicos.length) * 100);
+
+  // Reputação — nota × volume de avaliações
+  let reputacao = 0;
+  if (d.total_avaliacoes > 0 && d.nota !== null) {
+    const notaPct = Math.max(0, Math.min(1, (d.nota - 3) / 2)); // 3,0 → 0 ; 5,0 → 100
+    const volPct = Math.min(1, d.total_avaliacoes / 50); // 50+ avaliações satura
+    reputacao = Math.round((notaPct * 0.6 + volPct * 0.4) * 100);
+  }
+
+  // Atividade — fotos como sinal de ficha viva (é o que os dados públicos permitem)
+  const atividade = Math.round(Math.min(1, d.qtd_fotos / 15) * 100);
+
+  // Conversão — canais para o cliente agir agora
+  const canais = [d.telefone, d.site, d.status_negocio === "OPERATIONAL"];
+  const conversao = Math.round((canais.filter(Boolean).length / canais.length) * 100);
+
+  return [
+    { key: "completude", label: "Completude", score: completude, dica: "Telefone, site, endereço, categoria e horários preenchidos." },
+    { key: "reputacao", label: "Reputação", score: reputacao, dica: "Nota e quantidade de avaliações." },
+    { key: "atividade", label: "Atividade", score: atividade, dica: "Fotos publicadas — sinal de ficha cuidada." },
+    { key: "conversao", label: "Conversão", score: conversao, dica: "Canais para o cliente ligar, visitar o site e ver que está aberto." },
+  ];
+}
+
+function corNota(s: number) {
+  return s >= 70 ? "#34d399" : s >= 40 ? "#fbbf24" : "#f87171";
+}
+
+function Dimensoes({ d }: { d: Ficha }) {
+  const dims = dimensoes(d);
+  return (
+    <section className="card-surface mt-4 p-5">
+      <h2 className="mb-3 font-display text-sm font-bold">Notas por área da ficha</h2>
+      <div className="space-y-3">
+        {dims.map((dim) => (
+          <div key={dim.key}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-ink-200" title={dim.dica}>{dim.label}</span>
+              <span className="mono font-bold" style={{ color: corNota(dim.score) }}>{dim.score}/100</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full transition-all" style={{ width: `${dim.score}%`, background: corNota(dim.score) }} />
+            </div>
+            <p className="mt-1 text-[0.68rem] text-ink-400">{dim.dica}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Diagnostico({ d }: { d: Ficha }) {
   const problemas: { t: string; i: string }[] = [];
 
@@ -234,6 +290,8 @@ function Diagnostico({ d }: { d: Ficha }) {
           {d.endereco}
         </p>
       </div>
+
+      <Dimensoes d={d} />
 
       <section className="mt-4 rounded-xl border border-ok-500/30 bg-ok-500/[0.06] p-5">
         <h2 className="font-display text-sm font-bold text-ok-400">✅ Pontos fortes</h2>
