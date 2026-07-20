@@ -15,10 +15,9 @@ export async function generateMetadata({
   const { slug } = await params;
   const cat = getCategory(slug as FuncArea);
   if (!cat) return {};
-  const count = toolsByCategory(cat.slug).length;
   return {
     title: cat.label,
-    description: `${count} ferramentas de ${cat.label.toLowerCase()}: ${cat.description}`,
+    description: `Ferramentas de ${cat.label.toLowerCase()}: ${cat.description}`,
     alternates: { canonical: `/ferramentas/categoria/${cat.slug}/` },
   };
 }

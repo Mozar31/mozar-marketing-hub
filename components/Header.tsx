@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from "react";
 import { CATEGORIES, toolsByCategory } from "@/lib/registry";
 import { waLink } from "@/lib/config";
 import { SearchDialog } from "./SearchDialog";
-import { UpdatesBar } from "./UpdatesBar";
 
 export function Header() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -203,7 +202,6 @@ export function Header() {
         )}
       </header>
 
-      <UpdatesBar />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );

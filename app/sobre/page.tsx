@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { TOOLS } from "@/lib/registry";
 import { Breadcrumbs, CtaBlock } from "@/components/ui";
 import { waLink } from "@/lib/config";
 
@@ -11,30 +10,27 @@ export const metadata: Metadata = {
 };
 
 export default function SobrePage() {
-  const locais = TOOLS.filter((t) => t.badges.includes("local-only")).length;
-  const api = TOOLS.filter((t) => t.badges.includes("usa-api")).length;
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <Breadcrumbs items={[{ label: "Sobre" }]} />
 
       <h1 className="font-display mt-4 text-3xl font-bold sm:text-4xl">Sobre o Marketing Hub</h1>
       <p className="mt-4 text-ink-300">
-        O Marketing Hub é um conjunto de {TOOLS.length} ferramentas de marketing digital mantido pela{" "}
+        O Marketing Hub é um conjunto de ferramentas de marketing digital mantido pela{" "}
         <strong>Consig Invest</strong>. Ele existe para resolver as tarefas do dia a dia de quem
         cuida de site, anúncios e presença no Google — sem cadastro, sem limite diário e sem custo.
       </p>
 
       <h2 className="font-display mt-8 text-xl font-bold">Como as ferramentas funcionam</h2>
       <p className="mt-3 text-ink-300">
-        <strong>{locais} ferramentas rodam inteiramente no seu navegador.</strong> Ao converter um
+        <strong>A maior parte das ferramentas roda inteiramente no seu navegador.</strong> Ao converter um
         PDF, limpar uma lista de contatos ou redimensionar uma imagem, o arquivo nunca é enviado
         para servidor: o processamento acontece no seu próprio computador e o resultado é gerado
         localmente. Se você desconectar a internet depois de abrir a página, elas continuam
         funcionando.
       </p>
       <p className="mt-3 text-ink-300">
-        <strong>{api} ferramentas consultam APIs públicas do Google</strong> — a auditoria de
+        <strong>Duas ferramentas consultam APIs públicas do Google</strong> — a auditoria de
         velocidade usa o PageSpeed Insights e a análise da ficha usa o Places API. Nesses casos a
         fonte é citada na própria página do resultado, junto com a data e a hora da consulta.
       </p>

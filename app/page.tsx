@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { CATEGORIES, TOOLS, featuredTools, newTools, toolsByCategory } from "@/lib/registry";
+import { CATEGORIES, featuredTools, newTools } from "@/lib/registry";
 import { ToolCard, CtaBlock } from "@/components/ui";
 import { waLink } from "@/lib/config";
 
 export default function Home() {
   const featured = featuredTools();
   const novos = newTools();
-  const localOnly = TOOLS.filter((t) => t.badges.includes("local-only")).length;
 
   return (
     <>
@@ -21,8 +20,8 @@ export default function Home() {
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-300 md:text-lg">
           Teste, calcule, converta e diagnostique — em português, com metodologia clara e sem
-          precisar de cadastro. {localOnly} das {TOOLS.length} ferramentas rodam direto no seu
-          navegador, sem enviar arquivo para lugar nenhum.
+          precisar de cadastro. A maior parte das ferramentas roda direto no seu navegador, sem
+          enviar arquivo para lugar nenhum.
         </p>
 
         <div className="mt-7 flex flex-wrap gap-3">
@@ -44,9 +43,7 @@ export default function Home() {
           Escolha sua área e veja só as ferramentas que interessam para o seu trabalho.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {CATEGORIES.map((cat) => {
-            const count = toolsByCategory(cat.slug).length;
-            return (
+          {CATEGORIES.map((cat) => (
               <Link
                 key={cat.slug}
                 href={`/ferramentas/categoria/${cat.slug}/`}
@@ -57,12 +54,9 @@ export default function Home() {
                   {cat.label}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">{cat.description}</p>
-                <p className="mt-3 mono text-[0.7rem] text-info-400">
-                  {count} {count === 1 ? "ferramenta" : "ferramentas"} →
-                </p>
+                <p className="mt-3 mono text-[0.7rem] text-info-400">Ver ferramentas →</p>
               </Link>
-            );
-          })}
+          ))}
         </div>
       </section>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { searchTools, featuredTools, CATEGORIES, type Tool } from "@/lib/registry";
+import { searchTools, CATEGORIES, type Tool } from "@/lib/registry";
 
 /** Busca universal orientada a tarefa — §23. Aceita "converter pdf em word". */
 export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -11,7 +11,9 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const results: Tool[] = query.trim() ? searchTools(query).slice(0, 8) : featuredTools().slice(0, 6);
+  /** A busca só busca: sem consulta, não mostra lista nem sugestão. */
+  const hasQuery = query.trim().length > 0;
+  const results: Tool[] = hasQuery ? searchTools(query).slice(0, 8) : [];
 
   useEffect(() => {
     if (open) {
@@ -80,19 +82,14 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto p-2">
-          {!query.trim() && (
-            <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
-              Mais usadas
+          {!hasQuery ? (
+            <p className="px-3 py-6 text-center text-xs text-ink-400">
+              Digite para buscar.
             </p>
-          )}
-
-          {results.length === 0 ? (
+          ) : results.length === 0 ? (
             <div className="px-3 py-8 text-center">
               <p className="text-sm text-ink-300">
                 Nada encontrado para <strong className="text-ink-100">“{query}”</strong>.
-              </p>
-              <p className="mt-2 text-xs text-ink-400">
-                Tente descrever a tarefa: “comprimir imagem”, “quanto pagar por cliente”, “link do whatsapp”.
               </p>
             </div>
           ) : (
@@ -114,11 +111,6 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
                         <span className="block font-display text-sm font-semibold">{tool.title}</span>
                         <span className="block truncate text-xs text-ink-400">{tool.tagline}</span>
                       </span>
-                      {tool.badges.includes("local-only") && (
-                        <span className="mt-0.5 shrink-0 rounded-full bg-ok-500/15 px-2 py-0.5 text-[0.62rem] font-semibold text-ok-400">
-                          no navegador
-                        </span>
-                      )}
                     </button>
                   </li>
                 );
