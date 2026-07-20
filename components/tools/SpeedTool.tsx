@@ -16,6 +16,48 @@ interface DeviceResult {
   opportunities: { title: string; savingsMs: number }[];
 }
 
+/** Dados REAIS de campo (CrUX): experiência dos visitantes nos últimos 28 dias. */
+interface FieldResult {
+  overall: "good" | "mid" | "bad" | null;
+  scope: "url" | "origin";
+  metrics: { id: string; label: string; value: string; rating: "good" | "mid" | "bad"; explica: string }[];
+}
+
+const crux = (cat?: string): "good" | "mid" | "bad" | null =>
+  cat === "FAST" ? "good" : cat === "AVERAGE" ? "mid" : cat === "SLOW" ? "bad" : null;
+
+/**
+ * Lê loadingExperience (dados de campo do CrUX) da resposta do PageSpeed.
+ * É diferente do Lighthouse: aqui são medições de gente de verdade acessando
+ * o site, não uma simulação. O Google usa ISTO no sinal de Experiência da Página.
+ */
+function parseField(le: any): FieldResult | null {
+  const m = le?.metrics;
+  if (!m) return null;
+  const defs = [
+    { key: "LARGEST_CONTENTFUL_PAINT_MS", id: "lcp", label: "Conteúdo principal (LCP)",
+      fmt: (v: number) => (v / 1000).toFixed(1).replace(".", ",") + " s",
+      explica: "Tempo real até o visitante ver a parte principal. Ideal: até 2,5 s." },
+    { key: "INTERACTION_TO_NEXT_PAINT", id: "inp", label: "Resposta ao toque (INP)",
+      fmt: (v: number) => Math.round(v) + " ms",
+      explica: "Quanto o site demora a reagir quando a pessoa toca ou clica. Ideal: até 200 ms." },
+    { key: "CUMULATIVE_LAYOUT_SHIFT_SCORE", id: "cls", label: "Estabilidade visual (CLS)",
+      fmt: (v: number) => (v / 100).toFixed(2).replace(".", ","),
+      explica: "Se os elementos pulam de lugar enquanto carrega. Ideal: abaixo de 0,10." },
+  ];
+  const metrics = defs
+    .filter((d) => m[d.key] && crux(m[d.key].category) != null)
+    .map((d) => ({
+      id: d.id,
+      label: d.label,
+      value: d.fmt(m[d.key].percentile),
+      rating: crux(m[d.key].category)!,
+      explica: d.explica,
+    }));
+  if (!metrics.length) return null;
+  return { overall: crux(le.overall_category), scope: le.origin_fallback ? "origin" : "url", metrics };
+}
+
 const CATS = [
   { key: "performance", label: "Desempenho" },
   { key: "accessibility", label: "Acessibilidade" },
@@ -98,6 +140,8 @@ export function SpeedTool() {
   const [error, setError] = useState<string | null>(null);
   const [mobile, setMobile] = useState<DeviceResult | null>(null);
   const [desktop, setDesktop] = useState<DeviceResult | null>(null);
+  const [field, setField] = useState<FieldResult | null>(null);
+  const [hasField, setHasField] = useState(false);
   const [analyzed, setAnalyzed] = useState<{ host: string; at: string } | null>(null);
 
   const submit = async (e: React.FormEvent) => {
@@ -111,6 +155,7 @@ export function SpeedTool() {
     setLoading(true);
     setMobile(null);
     setDesktop(null);
+    setField(null);
     try {
       const [m, d] = await Promise.all([
         runPageSpeed(target, "mobile"),
@@ -119,6 +164,11 @@ export function SpeedTool() {
       if (!m?.lighthouseResult) throw new Error("API:sem resultado");
       setMobile(parse(m.lighthouseResult));
       if (d?.lighthouseResult) setDesktop(parse(d.lighthouseResult));
+      // Dados de campo (CrUX): tenta a página específica; se não houver, o site inteiro.
+      const fUrl = parseField(m.loadingExperience);
+      const fOrigin = parseField(m.originLoadingExperience);
+      setField(fUrl ?? (fOrigin ? { ...fOrigin, scope: "origin" as const } : null));
+      setHasField(true);
       setAnalyzed({
         host: new URL(target).hostname.replace(/^www\./, ""),
         at: new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }),
@@ -169,12 +219,22 @@ export function SpeedTool() {
       {mobile && analyzed && (
         <div className="mt-8">
           <p className="mb-6 rounded-lg border border-white/10 bg-navy-800 p-3 text-xs text-ink-400">
-            Resultado de <strong className="text-ink-200">{analyzed.host}</strong> · análise de laboratório
-            (Lighthouse) feita em {analyzed.at} · fonte: Google PageSpeed Insights.{" "}
-            <span className="text-ink-300">
-              São dados simulados em ambiente controlado, não a experiência real dos seus visitantes.
-            </span>
+            Resultado de <strong className="text-ink-200">{analyzed.host}</strong> · análise feita em{" "}
+            {analyzed.at} · fonte: Google PageSpeed Insights.
           </p>
+
+          {/* ── DADOS REAIS (campo/CrUX) — o que o Google usa no ranqueamento ── */}
+          {hasField && <FieldSection field={field} scopeHost={analyzed.host} />}
+
+          {/* ── LABORATÓRIO (Lighthouse) — simulação ── */}
+          <div className="mb-4 mt-8 flex items-center gap-2">
+            <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-ink-300">
+              Laboratório
+            </span>
+            <p className="text-xs text-ink-400">
+              Simulação em ambiente controlado — útil para diagnóstico, mas <strong className="text-ink-300">não</strong> é a experiência real dos visitantes.
+            </p>
+          </div>
 
           <DeviceBlock title="📱 No celular" subtitle="É esta a nota que o Google usa para ranquear" data={mobile} />
           {desktop ? (
@@ -212,6 +272,62 @@ export function SpeedTool() {
 
 function scoreColor(s: number) {
   return s >= 90 ? "#34d399" : s >= 50 ? "#fbbf24" : "#f87171";
+}
+
+const RATING_COLOR = { good: "#34d399", mid: "#fbbf24", bad: "#f87171" } as const;
+const RATING_TXT = { good: "Bom", mid: "Precisa melhorar", bad: "Ruim" } as const;
+
+/** Dados reais de campo (CrUX). Vem primeiro porque é o que importa para o Google. */
+function FieldSection({ field, scopeHost }: { field: FieldResult | null; scopeHost: string }) {
+  if (!field) {
+    return (
+      <section className="rounded-xl border border-white/10 bg-navy-800 p-5">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="rounded-full border border-info-500/40 bg-info-500/15 px-2.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-info-400">
+            Dados reais
+          </span>
+          <h2 className="font-display text-base font-bold">Experiência dos visitantes</h2>
+        </div>
+        <p className="text-sm leading-relaxed text-ink-300">
+          O Google ainda <strong className="text-ink-100">não tem dados reais suficientes</strong> sobre{" "}
+          {scopeHost} para mostrar aqui — isso acontece quando o site recebe pouco tráfego. Não quer dizer
+          que o site é rápido nem lento: apenas que faltam medições de visitantes reais. Use o laboratório
+          abaixo como diagnóstico enquanto isso.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-info-500/25 bg-info-500/[0.06] p-5">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <span className="rounded-full border border-info-500/40 bg-info-500/15 px-2.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-info-400">
+          Dados reais
+        </span>
+        <h2 className="font-display text-base font-bold">Experiência dos visitantes (últimos 28 dias)</h2>
+        {field.overall && (
+          <span className="mono text-xs font-bold" style={{ color: RATING_COLOR[field.overall] }}>
+            · {RATING_TXT[field.overall]}
+          </span>
+        )}
+      </div>
+      <p className="mb-4 text-xs text-ink-400">
+        Medições de gente de verdade acessando {field.scope === "origin" ? "o site inteiro" : "esta página"}.
+        {" "}<strong className="text-ink-300">É isto que o Google usa no ranqueamento</strong>, não a nota de laboratório.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {field.metrics.map((m) => (
+          <div key={m.id} className="card-surface p-4">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-ink-400">{m.label}</p>
+            <p className="mono mt-1 text-lg font-bold" style={{ color: RATING_COLOR[m.rating] }}>
+              {m.value} <span className="text-[0.7rem] font-normal">· {RATING_TXT[m.rating]}</span>
+            </p>
+            <p className="mt-1.5 text-[0.7rem] leading-relaxed text-ink-400">{m.explica}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function DeviceBlock({ title, subtitle, data }: { title: string; subtitle?: string; data: DeviceResult }) {
