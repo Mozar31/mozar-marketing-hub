@@ -17,6 +17,12 @@ export const PAGESPEED_KEY = "AIzaSyCE2W5SN58BNxlE_q7FOqpqz89wKCRmAkY";
 export const GMB_ANALYZE = "https://n8n.vpsmozar.plusnetworks.com.br/webhook/gmb-analyze";
 
 /**
+ * Webhook n8n que gera o texto do anúncio do Google Ads com IA (OpenAI).
+ * A chave da OpenAI fica EXCLUSIVAMENTE no n8n (credencial server-side), nunca aqui.
+ */
+export const IA_ANUNCIO = "https://n8n.vpsmozar.plusnetworks.com.br/webhook/ia-anuncio";
+
+/**
  * Supabase — conteúdo editorial (notícias).
  *
  * A publishable key é pública POR DESIGN: ela só consegue fazer o que as políticas

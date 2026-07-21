@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { waLink } from "@/lib/config";
+import { waLink, IA_ANUNCIO } from "@/lib/config";
 
 /**
  * Gerador de anúncios do Google Ads (Responsive Search Ads) — §8 do "Arrumar hub".
@@ -234,6 +234,8 @@ export function GoogleAdsTool() {
   const [caminho, setCaminho] = useState<[string, string]>(["", ""]);
   const [gerado, setGerado] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [iaLoading, setIaLoading] = useState(false);
+  const [iaErro, setIaErro] = useState("");
 
   const set = (k: keyof Brief) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setBrief((b) => ({ ...b, [k]: e.target.value }));
@@ -247,6 +249,43 @@ export function GoogleAdsTool() {
     setCaminho(gerarCaminho(brief));
     setGerado(true);
     setCopiado(false);
+  };
+
+  /**
+   * Gera os textos com IA via webhook do n8n (a chave da OpenAI fica no n8n).
+   * Se a IA falhar, mostra aviso e o usuário pode usar o montador guiado normal.
+   */
+  const asArray = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : []);
+  const gerarComIA = async () => {
+    if (!podeGerar || iaLoading) return;
+    setIaErro("");
+    setIaLoading(true);
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      const res = await fetch(IA_ANUNCIO, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(brief),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error("http");
+      const data = await res.json();
+      const tits = asArray(data.titulos).slice(0, 15);
+      const descs = asArray(data.descricoes).slice(0, 4);
+      if (data.erro || (!tits.length && !descs.length)) throw new Error("ia");
+      setTitulos(tits.length ? tits : gerarTitulos(brief));
+      setDescricoes(descs.length ? descs : gerarDescricoes(brief));
+      setCallouts(asArray(data.callouts).slice(0, 6));
+      setCaminho(gerarCaminho(brief));
+      setGerado(true);
+      setCopiado(false);
+    } catch {
+      setIaErro("A IA não respondeu agora. Tente de novo em instantes ou use o botão “Gerar anúncio”.");
+    } finally {
+      setIaLoading(false);
+    }
   };
 
   // Checklist de boas práticas do Google (mín. de itens, palavra-chave nos títulos).
@@ -348,14 +387,20 @@ export function GoogleAdsTool() {
           </button>
           <button
             type="button"
-            disabled
-            title="Em breve: geração com inteligência artificial pelo n8n"
-            className="btn-ghost cursor-not-allowed opacity-60"
+            onClick={gerarComIA}
+            disabled={!podeGerar || iaLoading}
+            title="Gera os textos com inteligência artificial"
+            className="btn-ghost disabled:cursor-not-allowed disabled:opacity-60"
           >
-            🤖 Gerar com IA (em breve)
+            {iaLoading ? "🤖 Gerando…" : "🤖 Gerar com IA"}
           </button>
           {!podeGerar && <span className="text-xs text-ink-400">Preencha ao menos o produto ou a palavra-chave.</span>}
         </div>
+        {iaErro && (
+          <p className="mt-3 rounded-lg border border-warn-500/50 bg-warn-500/10 p-2.5 text-xs text-warn-400" role="alert">
+            ⚠️ {iaErro}
+          </p>
+        )}
       </section>
 
       {gerado && (

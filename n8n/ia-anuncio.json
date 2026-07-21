@@ -1,0 +1,66 @@
+{
+  "name": "Hub - IA Gerador de anuncios (Google Ads)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ia-anuncio",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://hub.consiginvest.com"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "ia-anuncio"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 900, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: 'Você é especialista em Google Ads (Rede de Pesquisa). A partir dos dados do negócio, gere um anúncio responsivo em português do Brasil. Responda APENAS com um objeto JSON contendo as chaves: titulos (array de 8 a 12 textos, cada um com no máximo 30 caracteres), descricoes (array de 4 textos, cada um com no máximo 90 caracteres) e callouts (array de 4 a 6 textos, cada um com no máximo 25 caracteres). Inclua a palavra-chave nos titulos quando houver. Não use aspas dentro dos textos. Seja específico e persuasivo, sem promessas irreais.' }, { role: 'user', content: 'Dados do negócio: ' + JSON.stringify($json.body || {}) } ] }) }}",
+        "options": {}
+      },
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "credentials": {
+        "openAiApi": { "id": "VdhVKlqKOqnxFJTX", "name": "OpenAi account" }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { try { return JSON.parse($json.choices[0].message.content); } catch(e) { return { erro: 'ia_indisponivel' }; } })() }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "https://hub.consiginvest.com" }
+            ]
+          }
+        }
+      },
+      "id": "responder",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "OpenAI", "type": "main", "index": 0 }]] },
+    "OpenAI": { "main": [[{ "node": "Responder", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
