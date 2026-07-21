@@ -219,7 +219,7 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "presets-de-criativos",
-    title: "Presets de criativos",
+    title: "Redimensionamento de criativos",
     tagline: "Tamanho certo para cada rede social",
     description:
       "Redimensione sua imagem para os formatos exatos de Instagram, Facebook, LinkedIn, YouTube e Google Ads, sem sair do navegador.",

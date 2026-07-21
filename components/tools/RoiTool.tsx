@@ -99,7 +99,16 @@ export function RoiTool() {
         ))}
       </div>
 
-      <p className="mb-4 text-sm text-ink-400">{PLAT_INFO[plat].texto}</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-ink-400">{PLAT_INFO[plat].texto}</p>
+        <button
+          type="button"
+          onClick={() => { setInvest(""); setCpc(""); setCpm(""); setCtr(""); setConv(""); setClose(""); setTicket(""); setMargem(""); }}
+          className="btn-ghost shrink-0 text-xs"
+        >
+          🧹 Limpar
+        </button>
+      </div>
 
       {/* Entradas */}
       <div className="card-surface grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">

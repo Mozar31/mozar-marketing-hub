@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { loadScript, loadImageFile, canvasToBlob, baseName } from "@/lib/tools/runtime";
 import { LIB } from "@/lib/config";
 
@@ -210,26 +210,45 @@ const PRESETS = [
 ];
 
 export function CreativePresets() {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>(["ig-feed", "ig-stories"]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<{ url: string; name: string; label: string }[]>([]);
   const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const all = PRESETS.flatMap((g) => g.items);
-
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const process = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
+  // Etapa 1 — recebe a imagem (sem processar ainda)
+  const receber = (f?: File | null) => {
     setError(null);
     setResults([]);
-    if (!selected.length) {
-      setError("Escolha pelo menos um formato antes de enviar a imagem.");
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setError("Envie uma imagem (JPG, PNG ou WebP).");
       return;
     }
+    setPreview((old) => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(f); });
+    setFile(f);
+  };
+
+  const recomeçar = () => {
+    setPreview((old) => { if (old) URL.revokeObjectURL(old); return null; });
+    setFile(null);
+    setResults([]);
+    setError(null);
+  };
+
+  // Etapa 3 — gera nos formatos escolhidos
+  const gerar = async () => {
+    if (!file) return;
+    if (!selected.length) { setError("Escolha pelo menos um formato."); return; }
+    setError(null);
+    setResults([]);
     try {
       setStatus("Carregando imagem…");
       const img = await loadImageFile(file);
@@ -267,72 +286,101 @@ export function CreativePresets() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-ink-400">
-        Escolha os formatos e envie uma imagem: ela é recortada centralizada (sem distorcer) no
-        tamanho exato de cada rede.
-      </p>
-
-      <div className="card-surface mb-4 space-y-3 p-5">
-        {PRESETS.map((g) => (
-          <div key={g.group}>
-            <p className="mb-1.5 text-xs font-semibold text-ink-300">{g.group}</p>
-            <div className="flex flex-wrap gap-2">
-              {g.items.map((p) => (
-                <button
-                  key={p.id} type="button" onClick={() => toggle(p.id)}
-                  aria-pressed={selected.includes(p.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                    selected.includes(p.id)
-                      ? "border-action-500 bg-action-500/20 text-ink-100"
-                      : "border-white/15 text-ink-300 hover:border-info-500/50"
-                  }`}
-                >
-                  {p.label} <span className="mono text-[0.65rem] opacity-70">{p.w}×{p.h}</span>
-                </button>
-              ))}
-            </div>
+      {/* ── ETAPA 1: enviar a imagem ── */}
+      {!file ? (
+        <>
+          <p className="mb-4 text-sm text-ink-400">
+            Esta ferramenta pega <strong className="text-ink-200">uma imagem sua</strong> e a corta no
+            tamanho exato de cada rede social (Instagram, Facebook, LinkedIn, YouTube, Google Ads), sem
+            distorcer. <strong className="text-ink-200">Passo 1:</strong> envie a imagem.
+          </p>
+          <div
+            role="button" tabIndex={0}
+            onClick={() => inputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click(); } }}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); receber(e.dataTransfer.files?.[0]); }}
+            className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition ${
+              dragging ? "border-info-400 bg-info-500/10" : "border-info-500/35 bg-info-500/[0.04] hover:border-info-400"
+            }`}
+          >
+            <p className="text-sm font-semibold text-ink-200">Arraste a imagem aqui ou clique para escolher</p>
+            <p className="mt-1 text-xs text-ink-400">Suas imagens ficam no seu computador</p>
           </div>
-        ))}
-        <p className="mono text-[0.7rem] text-info-400">{selected.length} formato(s) selecionado(s)</p>
-      </div>
+          {error && <p className="mt-4 rounded-lg border border-warn-500/50 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert">⚠️ {error}</p>}
+        </>
+      ) : (
+        <>
+          {/* imagem enviada + trocar */}
+          <div className="mb-4 flex flex-wrap items-center gap-4">
+            {preview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Imagem enviada" className="h-16 w-16 rounded-lg border border-white/15 object-cover" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink-200">{file.name}</p>
+              <p className="text-xs text-ink-400">Passo 2: escolha os formatos abaixo.</p>
+            </div>
+            <button type="button" onClick={recomeçar} className="btn-ghost shrink-0 text-xs">Trocar imagem</button>
+          </div>
 
-      <div
-        role="button" tabIndex={0}
-        onClick={() => document.getElementById("preset-input")?.click()}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.getElementById("preset-input")?.click(); } }}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files.length) void process([...e.dataTransfer.files]); }}
-        className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition ${
-          dragging ? "border-info-400 bg-info-500/10" : "border-info-500/35 bg-info-500/[0.04] hover:border-info-400"
-        }`}
-      >
-        <p className="text-sm font-semibold text-ink-200">Arraste a imagem aqui</p>
-        <p className="mt-1 text-xs text-ink-400">Suas imagens ficam no seu computador</p>
-        <input
-          id="preset-input" type="file" hidden accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-          onChange={(e) => { if (e.target.files?.length) void process([...e.target.files]); }}
-        />
-      </div>
-
-      {status && <p className="mono mt-4 text-sm text-info-400" role="status" aria-live="polite">{status}</p>}
-      {error && <p className="mt-4 rounded-lg border border-warn-500/50 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert">⚠️ {error}</p>}
-
-      {results.length > 0 && (
-        <div className="card-surface mt-5 border-ok-500/30 p-5">
-          <p className="font-display text-sm font-bold text-ok-400">✅ {results.length} imagem(ns) gerada(s)</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((r) => (
-              <div key={r.url} className="text-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.url} alt={r.label} className="mx-auto max-h-40 rounded-lg bg-white" />
-                <p className="mt-2 text-[0.7rem] text-ink-400">{r.label}</p>
-                <a href={r.url} download={r.name} className="btn-ghost mt-2 w-full text-xs">⬇️ Baixar</a>
+          {/* ── ETAPA 2: escolher formatos ── */}
+          <div className="card-surface mb-4 space-y-3 p-5">
+            {PRESETS.map((g) => (
+              <div key={g.group}>
+                <p className="mb-1.5 text-xs font-semibold text-ink-300">{g.group}</p>
+                <div className="flex flex-wrap gap-2">
+                  {g.items.map((p) => (
+                    <button
+                      key={p.id} type="button" onClick={() => toggle(p.id)}
+                      aria-pressed={selected.includes(p.id)}
+                      className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                        selected.includes(p.id)
+                          ? "border-action-500 bg-action-500/20 text-ink-100"
+                          : "border-white/15 text-ink-300 hover:border-info-500/50"
+                      }`}
+                    >
+                      {p.label} <span className="mono text-[0.65rem] opacity-70">{p.w}×{p.h}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
+            <p className="mono text-[0.7rem] text-info-400">{selected.length} formato(s) selecionado(s)</p>
           </div>
-        </div>
+
+          {/* ── ETAPA 3: gerar ── */}
+          <button type="button" onClick={gerar} disabled={!!status} className="btn-primary">
+            {status ? "Gerando…" : `🖼️ Gerar ${selected.length} imagem(ns)`}
+          </button>
+          {status && <p className="mono mt-4 text-sm text-info-400" role="status" aria-live="polite">{status}</p>}
+          {error && <p className="mt-4 rounded-lg border border-warn-500/50 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert">⚠️ {error}</p>}
+
+          {results.length > 0 && (
+            <div className="card-surface mt-5 border-ok-500/30 p-5">
+              <p className="font-display text-sm font-bold text-ok-400">✅ {results.length} imagem(ns) gerada(s)</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {results.map((r) => (
+                  <div key={r.url} className="text-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.url} alt={r.label} className="mx-auto max-h-40 rounded-lg bg-white" />
+                    <p className="mt-2 text-[0.7rem] text-ink-400">{r.label}</p>
+                    <a href={r.url} download={r.name} className="btn-ghost mt-2 w-full text-xs">⬇️ Baixar</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
+
+      {/* input escondido: recriado a cada troca, então re-selecionar o mesmo arquivo funciona */}
+      <input
+        ref={inputRef} type="file" hidden
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        onChange={(e) => { receber(e.target.files?.[0]); e.target.value = ""; }}
+      />
     </div>
   );
 }

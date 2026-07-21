@@ -8,6 +8,18 @@ import { loadImageFile } from "@/lib/tools/runtime";
 const toHex = (r: number, g: number, b: number) =>
   "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
 
+/** HSL (h em graus, s/l em 0–1) → HEX. Usado nas harmonias de cor. */
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] =
+    h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] :
+    h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return toHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255);
+}
+
 /**
  * Extrai as cores dominantes de uma imagem, localmente (canvas).
  * Reduz a imagem, agrupa cores parecidas e devolve as mais frequentes e distintas.
@@ -120,21 +132,39 @@ export function ColorStudio() {
     const cBlack = (L + 0.05) / 0.05;
     const shade = (fct: number) => "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v * fct)))).map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
     const tint = (fct: number) => "#" + [r, g, b].map((v) => Math.round(v + (255 - v) * fct)).map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+    // h já está em graus (0–360) pelo cálculo acima
+    const harmonias = [
+      { nome: "Complementar", cor: hslToHex(h + 180, sat, l) },
+      { nome: "Análoga −30°", cor: hslToHex(h - 30, sat, l) },
+      { nome: "Análoga +30°", cor: hslToHex(h + 30, sat, l) },
+      { nome: "Tríade +120°", cor: hslToHex(h + 120, sat, l) },
+      { nome: "Tríade +240°", cor: hslToHex(h + 240, sat, l) },
+    ];
     return {
       hex, r, g, b,
       hsl: `hsl(${Math.round(h)}, ${Math.round(sat * 100)}%, ${Math.round(l * 100)}%)`,
       cmyk: cmyk.join("%, ") + "%",
       cWhite, cBlack,
       variations: [shade(0.4), shade(0.7), hex, tint(0.35), tint(0.7)],
+      harmonias,
     };
   }, [rgb]);
 
   return (
     <div>
-      <p className="mb-4 text-sm text-ink-400">
-        Converta uma cor entre os formatos usados em web e impressão e confira se o contraste atende
-        às regras de acessibilidade (WCAG 2.2 AA exige no mínimo 4,5:1 para texto normal).
-      </p>
+      <div className="mb-4 space-y-2 text-sm text-ink-400">
+        <p>
+          <strong className="text-ink-200">Para que serve:</strong> toda cor tem um “código” que designers e
+          sites usam para reproduzir exatamente o mesmo tom. Aqui você descobre esse código da cor da sua
+          marca, gera versões mais claras e escuras, e vê quais cores combinam com ela.
+        </p>
+        <p className="text-xs">
+          <strong className="text-ink-300">HEX</strong> (ex.: #2563EB) é o código usado em sites e no Canva.{" "}
+          <strong className="text-ink-300">RGB</strong> é o mesmo tom em tela. <strong className="text-ink-300">CMYK</strong>{" "}
+          é para gráfica/impressão. O <strong className="text-ink-300">contraste</strong> mostra se um texto por cima
+          da cor vai ficar legível.
+        </p>
+      </div>
 
       <div className="card-surface flex flex-wrap items-end gap-4 p-5">
         <label className="flex flex-1 min-w-[14rem] flex-col gap-1.5 text-xs font-semibold text-ink-300">
@@ -198,16 +228,37 @@ export function ColorStudio() {
             </dl>
           </div>
 
-          <p className="mt-5 text-xs font-semibold text-ink-300">Variações (clique para copiar)</p>
+          <p className="mt-5 text-xs font-semibold text-ink-300">
+            Variações (clique para usar) <span className="font-normal text-ink-400">— do mais escuro ao mais claro</span>
+          </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {data.variations.map((v, i) => (
               <button
-                key={v + i} type="button" title={v}
-                onClick={() => navigator.clipboard?.writeText(v)}
-                className="h-12 w-16 rounded-lg border border-white/15 transition hover:scale-105"
-                style={{ background: v }}
-                aria-label={`Copiar cor ${v}`}
-              />
+                key={v + i} type="button" title={`Usar ${v}`}
+                onClick={() => setInput(v)}
+                className="flex flex-col items-center gap-1"
+                aria-label={`Usar a cor ${v}`}
+              >
+                <span className="h-12 w-16 rounded-lg border border-white/15 transition hover:scale-105" style={{ background: v }} />
+                <span className="mono text-[0.6rem] text-ink-400">{v}</span>
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-5 text-xs font-semibold text-ink-300">
+            Cores que combinam <span className="font-normal text-ink-400">(clique para usar)</span>
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {data.harmonias.map((har) => (
+              <button
+                key={har.nome} type="button" title={`${har.nome} — ${har.cor}`}
+                onClick={() => setInput(har.cor)}
+                className="flex flex-col items-center gap-1"
+                aria-label={`Usar ${har.nome} ${har.cor}`}
+              >
+                <span className="h-12 w-16 rounded-lg border border-white/15 transition hover:scale-105" style={{ background: har.cor }} />
+                <span className="text-[0.58rem] text-ink-400">{har.nome}</span>
+              </button>
             ))}
           </div>
 
