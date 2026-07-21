@@ -36,17 +36,17 @@ export function Header() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#071225]/95 backdrop-blur">
         {/* ── Linha 1: marca, busca, conta/CTA ── */}
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
             <Image
               src="/logo.png"
               alt=""
               width={40}
               height={40}
-              className="rounded-full object-cover ring-2 ring-info-500/40"
+              className="shrink-0 rounded-full object-cover ring-2 ring-info-500/40"
               priority
             />
-            <span className="flex flex-col leading-tight">
-              <span className="font-display text-[0.95rem] font-extrabold tracking-tight">
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate font-display text-[0.85rem] font-extrabold tracking-tight sm:text-[0.95rem]">
                 CONSIG INVEST <span className="text-info-400">|</span> MARKETING HUB
               </span>
               <span className="hidden text-[0.68rem] text-info-400 sm:block">
@@ -55,7 +55,8 @@ export function Header() {
             </span>
           </Link>
 
-          <HeaderSearch />
+          {/* Busca inline (desktop/tablet). No mobile ela vai numa linha própria abaixo. */}
+          <HeaderSearch className="ml-auto hidden max-w-md flex-1 md:block" />
 
           <a
             href={waLink("Olá, vim através do Hub da Consig Invest e gostaria de mais informações...")}
@@ -80,6 +81,11 @@ export function Header() {
               {mobileOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 6h18M3 12h18M3 18h18" />}
             </svg>
           </button>
+        </div>
+
+        {/* ── Busca em linha própria no mobile (larga, fácil de tocar) ── */}
+        <div className="border-t border-white/[0.07] px-4 pb-3 pt-1 md:hidden">
+          <HeaderSearch className="w-full" />
         </div>
 
         {/* ── Linha 2: navegação principal com mega menus ── */}

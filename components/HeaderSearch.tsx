@@ -8,7 +8,7 @@ import { searchTools, CATEGORIES, type Tool } from "@/lib/registry";
  * Busca inline no cabeçalho — fica no canto e abre um menu logo abaixo,
  * sem tomar a tela inteira (pedido do cliente). Só busca; sem atalho "/".
  */
-export function HeaderSearch() {
+export function HeaderSearch({ className = "ml-auto flex-1 max-w-md" }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -39,7 +39,7 @@ export function HeaderSearch() {
   };
 
   return (
-    <div ref={boxRef} className="relative ml-auto flex-1 max-w-md">
+    <div ref={boxRef} className={`relative ${className}`}>
       <div className="flex items-center gap-2 rounded-lg border border-white/15 bg-navy-900 px-3 py-2 focus-within:border-info-500/60">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-400" aria-hidden="true">
           <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
