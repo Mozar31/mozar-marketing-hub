@@ -24,6 +24,39 @@ interface Ficha {
   status_negocio: string;
 }
 
+/**
+ * Mapa embutido do Google — usa o endpoint público `output=embed`, que não
+ * exige chave de API nem tem custo. Serve para o usuário CONFIRMAR visualmente
+ * a empresa/filial (§7 do "Arrumar hub"). A análise da ficha continua vindo do
+ * link do Maps; o mapa é só apoio visual.
+ */
+function MapEmbed({ query, className = "", label }: { query: string; className?: string; label?: string }) {
+  const src = `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=15&hl=pt-BR&output=embed`;
+  return (
+    <div className={className}>
+      {label && <p className="mb-1.5 text-xs text-ink-400">{label}</p>}
+      <div className="overflow-hidden rounded-lg border border-white/10">
+        <iframe
+          title={`Mapa de ${query}`}
+          src={src}
+          className="block h-56 w-full sm:h-64"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+      </div>
+      <a
+        href={`https://www.google.com/maps/search/${encodeURIComponent(query)}`}
+        target="_blank"
+        rel="noopener"
+        className="mt-1.5 inline-block text-xs text-info-400 underline underline-offset-2 hover:text-info-300"
+      >
+        Abrir no Google Maps →
+      </a>
+    </div>
+  );
+}
+
 const isMapsLink = (raw: string) =>
   /(?:google\.[a-z.]+\/(?:maps|search)|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
 
@@ -44,6 +77,14 @@ export function GmbTool() {
   const [error, setError] = useState<{ msg: string; cta: boolean } | null>(null);
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [semFicha, setSemFicha] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [mapQuery, setMapQuery] = useState("");
+
+  const verNoMapa = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = busca.trim();
+    if (q.length >= 3) setMapQuery(q);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +171,28 @@ export function GmbTool() {
       >
         Minha empresa ainda não tem ficha no Google →
       </button>
+
+      <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <p className="text-sm font-semibold text-ink-200">🔎 Confira sua empresa no mapa</p>
+        <p className="mt-0.5 text-xs text-ink-400">
+          Não tem certeza de qual link copiar? Digite o nome e a cidade da empresa para vê-la no mapa
+          e confirmar que é a unidade certa antes de analisar.
+        </p>
+        <form onSubmit={verNoMapa} className="mt-2.5 flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Ex.: Pizza Mood Porto Alegre"
+            className="input-base flex-1 min-w-[14rem]"
+            aria-label="Nome e cidade da empresa"
+          />
+          <button type="submit" className="btn-ghost" disabled={busca.trim().length < 3}>
+            Ver no mapa
+          </button>
+        </form>
+        {mapQuery && <MapEmbed query={mapQuery} className="mt-3" />}
+      </div>
 
       {loading && (
         <p className="mono mt-5 flex items-center gap-2 text-sm text-info-400" role="status" aria-live="polite">
@@ -310,6 +373,13 @@ function Diagnostico({ d }: { d: Ficha }) {
           {d.categoria && d.endereco ? " · " : ""}
           {d.endereco}
         </p>
+        {(d.nome || d.endereco) && (
+          <MapEmbed
+            query={[d.nome, d.endereco].filter(Boolean).join(" ")}
+            className="mt-3"
+            label="📍 Esta é a unidade analisada — confira se é a sua:"
+          />
+        )}
       </div>
 
       <Dimensoes d={d} />

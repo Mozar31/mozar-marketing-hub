@@ -81,6 +81,7 @@ describe("registry — nenhum botão vazio (PROMPT 17)", () => {
   const CUSTOM = [
     "velocidade-e-seo", "ficha-google", "previa-google-e-redes", "dados-estruturados",
     "simulador-roi", "calculadora-de-midia", "break-even-cac-ltv", "construtor-utm",
+    "gerador-google-ads",
     "link-whatsapp", "presets-de-criativos", "estudio-de-cores",
     "limpar-lista-de-contatos", "formatar-json", "texto-base64", "url-encode",
   ];

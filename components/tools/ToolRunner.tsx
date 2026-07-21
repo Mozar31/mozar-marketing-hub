@@ -31,6 +31,7 @@ const MediaCalculator = d(() => import("./MarketingTools").then((m) => ({ defaul
 const BreakEvenTool = d(() => import("./MarketingTools").then((m) => ({ default: m.BreakEvenTool })));
 const UtmBuilder = d(() => import("./MarketingTools").then((m) => ({ default: m.UtmBuilder })));
 const WhatsappTool = d(() => import("./MarketingTools").then((m) => ({ default: m.WhatsappTool })));
+const GoogleAdsTool = d(() => import("./AdsTools").then((m) => ({ default: m.GoogleAdsTool })));
 
 const ColorStudio = d(() => import("./TextTools").then((m) => ({ default: m.ColorStudio })));
 const JsonTool = d(() => import("./TextTools").then((m) => ({ default: m.JsonTool })));
@@ -51,6 +52,7 @@ const CUSTOM: Record<string, ComponentType> = {
   "calculadora-de-midia": MediaCalculator,
   "break-even-cac-ltv": BreakEvenTool,
   "construtor-utm": UtmBuilder,
+  "gerador-google-ads": GoogleAdsTool,
 
   "link-whatsapp": WhatsappTool,
   "presets-de-criativos": CreativePresets,

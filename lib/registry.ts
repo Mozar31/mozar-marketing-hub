@@ -204,6 +204,17 @@ export const TOOLS: Tool[] = [
     badges: ["local-only", "novo"],
     featured: true,
   },
+  {
+    slug: "gerador-google-ads",
+    title: "Gerador de anúncios do Google Ads",
+    tagline: "Títulos, descrições e extensões prontos",
+    description:
+      "Monte um anúncio do Google Ads: títulos, descrições, frases de destaque e caminho de exibição, já dentro dos limites de caractere, com contador e boas práticas.",
+    category: "trafego",
+    keywords: ["google ads", "anuncio", "rede de pesquisa", "rsa", "titulo", "descricao", "callout", "sitelink", "gerador", "copy", "texto de anuncio"],
+    badges: ["local-only", "novo"],
+    featured: true,
+  },
 
   // ═══════════════ Social e mensagens ═══════════════
   {
