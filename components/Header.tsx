@@ -5,12 +5,11 @@ import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { CATEGORIES, toolsByCategory } from "@/lib/registry";
 import { waLink } from "@/lib/config";
-import { SearchDialog } from "./SearchDialog";
+import { HeaderSearch } from "./HeaderSearch";
 
 export function Header() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   // Fecha mega menu com Escape ou clique fora (acessibilidade §17)
@@ -19,14 +18,6 @@ export function Header() {
       if (e.key === "Escape") {
         setOpenMenu(null);
         setMobileOpen(false);
-      }
-      // Atalho de busca: "/" ou Ctrl+K
-      if ((e.key === "/" || (e.key === "k" && (e.ctrlKey || e.metaKey))) && !searchOpen) {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag !== "INPUT" && tag !== "TEXTAREA") {
-          e.preventDefault();
-          setSearchOpen(true);
-        }
       }
     };
     const onClick = (e: MouseEvent) => {
@@ -38,7 +29,7 @@ export function Header() {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("click", onClick);
     };
-  }, [searchOpen]);
+  }, []);
 
   return (
     <>
@@ -49,9 +40,9 @@ export function Header() {
             <Image
               src="/logo.png"
               alt=""
-              width={38}
-              height={38}
-              className="rounded-full bg-white ring-2 ring-info-500/40"
+              width={40}
+              height={40}
+              className="rounded-full object-cover ring-2 ring-info-500/40"
               priority
             />
             <span className="flex flex-col leading-tight">
@@ -64,19 +55,7 @@ export function Header() {
             </span>
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            className="ml-auto flex flex-1 max-w-md items-center gap-2 rounded-lg border border-white/15 bg-navy-900 px-3 py-2 text-left text-sm text-ink-400 transition hover:border-info-500/60"
-            aria-label="Buscar ferramentas"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
-            </svg>
-            <span className="hidden truncate sm:inline">O que você quer fazer agora?</span>
-            <span className="sm:hidden">Buscar</span>
-            <kbd className="ml-auto hidden rounded border border-white/15 px-1.5 py-0.5 text-[0.65rem] md:inline">/</kbd>
-          </button>
+          <HeaderSearch />
 
           <a
             href={waLink("Olá, vim através do Hub da Consig Invest e gostaria de mais informações...")}
@@ -213,8 +192,6 @@ export function Header() {
           </nav>
         )}
       </header>
-
-      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

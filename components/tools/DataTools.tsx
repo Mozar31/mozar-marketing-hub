@@ -140,7 +140,7 @@ export function ContactCleaner() {
         }`}
       >
         <p className="text-sm font-semibold text-ink-200">Arraste a lista (.csv, .xlsx) aqui</p>
-        <p className="mt-1 text-xs text-ink-400">Seus contatos não saem do navegador</p>
+        <p className="mt-1 text-xs text-ink-400">Seus contatos ficam no seu computador</p>
         <input
           id="cleaner-input" type="file" hidden accept=".csv,.xlsx,.xls"
           onChange={(e) => { if (e.target.files?.length) void process([...e.target.files]); }}
@@ -308,7 +308,7 @@ export function CreativePresets() {
         }`}
       >
         <p className="text-sm font-semibold text-ink-200">Arraste a imagem aqui</p>
-        <p className="mt-1 text-xs text-ink-400">Nada é enviado para servidor</p>
+        <p className="mt-1 text-xs text-ink-400">Suas imagens ficam no seu computador</p>
         <input
           id="preset-input" type="file" hidden accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
           onChange={(e) => { if (e.target.files?.length) void process([...e.target.files]); }}

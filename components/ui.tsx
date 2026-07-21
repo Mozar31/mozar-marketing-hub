@@ -4,9 +4,9 @@ import { CATEGORIES, type Tool, type ToolBadge } from "@/lib/registry";
 /** Selos honestos de estado — §6 "estados obrigatórios". */
 const BADGE_STYLE: Record<ToolBadge, { label: string; className: string; title: string }> = {
   "local-only": {
-    label: "no navegador",
+    label: "seguro",
     className: "bg-ok-500/15 text-ok-400 border-ok-500/30",
-    title: "Processa no seu navegador — o arquivo não é enviado para nenhum servidor",
+    title: "Seus arquivos ficam no seu computador — não são enviados pela internet",
   },
   "usa-api": {
     label: "usa API",
@@ -102,18 +102,6 @@ export function CtaBlock({
         {buttonLabel}
       </a>
     </aside>
-  );
-}
-
-/** Aviso de privacidade — só aparece quando é verdade (§15 local-first). */
-export function LocalOnlyNotice() {
-  return (
-    <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-ok-500/30 bg-ok-500/10 px-3.5 py-1.5 text-[0.75rem] text-ok-400">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 1 1 8 0v3" />
-      </svg>
-      Nada sai do seu computador — o processamento acontece dentro do navegador
-    </p>
   );
 }
 

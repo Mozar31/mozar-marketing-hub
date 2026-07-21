@@ -118,7 +118,7 @@ export function FileTool({ slug }: { slug: string }) {
           <path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
         </svg>
         <p className="text-sm font-semibold text-ink-200">{def.dropText}</p>
-        <p className="mt-1 text-xs text-ink-400">Nada é enviado para servidor</p>
+        <p className="mt-1 text-xs text-ink-400">Seus arquivos ficam no seu computador</p>
         <input
           ref={inputRef}
           type="file"

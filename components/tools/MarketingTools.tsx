@@ -34,11 +34,20 @@ export function MediaCalculator() {
     };
   }, [invest, impr, cliques, conv, receita]);
 
+  const limpar = () => {
+    setInvest(""); setImpr(""); setCliques(""); setConv(""); setReceita("");
+  };
+
   return (
     <div>
-      <p className="mb-4 text-sm text-ink-400">
-        Preencha os números que você tem — as métricas derivadas são calculadas automaticamente.
-      </p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-ink-400">
+          Preencha os números que você tem — as métricas derivadas são calculadas automaticamente.
+        </p>
+        <button type="button" onClick={limpar} className="btn-ghost shrink-0 text-xs">
+          🧹 Limpar
+        </button>
+      </div>
       <div className="card-surface grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
         <NumField label="Investimento (R$)" value={invest} onChange={setInvest} />
         <NumField label="Impressões" value={impr} onChange={setImpr} />
@@ -218,10 +227,24 @@ export function UtmBuilder() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-ink-400">
-        Links com UTM permitem que o Google Analytics mostre exatamente de onde veio cada visita e
-        cada venda. Padronize sempre em minúsculas e sem acento — o Analytics diferencia maiúsculas.
-      </p>
+      <div className="mb-4 space-y-2 text-sm text-ink-400">
+        <p>
+          <strong className="text-ink-200">Para que serve:</strong> quando você divulga um link (num anúncio,
+          num post, num e-mail), por padrão você não sabe de onde veio cada pessoa que clicou. A UTM é uma
+          “etiqueta” que você cola no fim do link para saber exatamente isso.
+        </p>
+        <p>
+          <strong className="text-ink-200">O que é rastreamento (trackeamento):</strong> é acompanhar de onde
+          vem cada visitante e o que ele faz no seu site. Quem mostra esses números é o{" "}
+          <strong className="text-ink-200">Google Analytics</strong> — uma ferramenta gratuita do Google que
+          registra as visitas. Sem a etiqueta UTM, ele mostra “vieram do Instagram”; com ela, mostra
+          “vieram do <em>anúncio de julho</em> no Instagram”.
+        </p>
+        <p className="text-xs">
+          Dica: escreva sempre em minúsculas e sem acento — o Analytics trata “Julho” e “julho” como coisas
+          diferentes.
+        </p>
+      </div>
 
       <div className="card-surface space-y-4 p-5">
         <label className="flex flex-col gap-1.5 text-xs font-semibold text-ink-300">

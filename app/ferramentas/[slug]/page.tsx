@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { TOOLS, getTool, getCategory, toolsByCategory } from "@/lib/registry";
-import { Breadcrumbs, Badge, LocalOnlyNotice, SourceNote, CtaBlock, ToolCard } from "@/components/ui";
+import { Breadcrumbs, Badge, SourceNote, CtaBlock, ToolCard } from "@/components/ui";
 import { ToolRunner } from "@/components/tools/ToolRunner";
 import { waLink } from "@/lib/config";
 import { SITE_URL } from "@/app/layout";
@@ -94,18 +94,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
         )}
       </header>
 
-      {isLocal && <LocalOnlyNotice />}
-
       <ToolRunner slug={tool.slug} />
 
-      <SourceNote
-        source={tool.source}
-        note={
-          isLocal
-            ? "Esta ferramenta funciona inteiramente no seu navegador: nenhum arquivo ou dado é enviado para servidores da Consig Invest."
-            : undefined
-        }
-      />
+      <SourceNote source={tool.source} />
 
       {related.length > 0 && (
         <section className="mt-14" aria-labelledby="relacionadas">
