@@ -23,7 +23,7 @@ node.parameters.jsCode = codigo;
 // O casamento por domínio precisa de site_url; garantir que o SELECT traz.
 const busca = wf.nodes.find((n) => n.id === "buscar-fontes");
 const select = busca.parameters.queryParameters.parameters.find((p) => p.name === "select");
-select.value = "id,nome,feed_url,site_url,categoria,confianca";
+select.value = "id,nome,feed_url,site_url,categoria,confianca,idioma";
 
 fs.writeFileSync(wfPath, JSON.stringify(wf, null, 2) + "\n");
 
