@@ -27,6 +27,15 @@ interface Ficha {
 const isMapsLink = (raw: string) =>
   /(?:google\.[a-z.]+\/(?:maps|search)|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|share\.google)/i.test(raw);
 
+/**
+ * Link vindo da BUSCA do Google (share.google, /search, kgmid) — carrega só o
+ * nome, não o place_id da filial. Para empresas com unidades de mesmo nome,
+ * pode trazer a matriz em vez da unidade escolhida. O link do Google MAPS
+ * (maps.app.goo.gl / /maps/place) carrega o place_id exato.
+ */
+const isBuscaLink = (raw: string) =>
+  /share\.google|google\.[a-z.]+\/search|[?&]kgmid=/i.test(raw) && !/\/maps\/place\//i.test(raw);
+
 const fmtNota = (n: number) => String(n).replace(".", ",");
 
 export function GmbTool() {
@@ -67,6 +76,11 @@ export function GmbTool() {
 
       if (data.error === "link_invalido")
         setError({ msg: "Esse link não parece ser do Google Maps. Abra sua empresa no Maps → Compartilhar → Copiar link.", cta: false });
+      else if (data.error === "ficha_nao_encontrada" && isBuscaLink(raw))
+        setError({
+          msg: "Esse link veio da busca do Google e não identifica a unidade exata. Abra sua empresa no aplicativo do Google Maps → Compartilhar → Copiar link, e cole aqui.",
+          cta: false,
+        });
       else if (data.error === "ficha_nao_encontrada")
         setError({ msg: "Não encontramos essa ficha. Confira o link ou fale com um especialista.", cta: true });
       else if (data.error === "limite_diario")
@@ -98,10 +112,17 @@ export function GmbTool() {
         </button>
       </form>
       <p className="mt-2 text-xs leading-relaxed text-ink-400">
-        📱 Como pegar o link: abra sua empresa no Google Maps → <strong>Compartilhar</strong> →{" "}
-        <strong>Copiar link</strong>. Também funciona colando o endereço da busca do Google onde sua
-        empresa aparece.
+        📱 Como pegar o link: abra sua empresa no <strong>aplicativo do Google Maps</strong> →{" "}
+        <strong>Compartilhar</strong> → <strong>Copiar link</strong>.{" "}
+        <strong className="text-ink-300">Se você tem mais de uma unidade com o mesmo nome, use sempre o link do Maps</strong>{" "}
+        — ele aponta a filial exata. O link da busca do Google traz a unidade principal.
       </p>
+      {isBuscaLink(link.trim()) && (
+        <p className="mt-2 rounded-lg border border-warn-500/40 bg-warn-500/10 p-2.5 text-xs text-warn-400">
+          ⚠️ Esse link parece vir da <strong>busca</strong> do Google. Se sua empresa tem filiais de mesmo
+          nome, ele pode trazer a errada. Prefira o link do <strong>Google Maps</strong> (Compartilhar → Copiar link).
+        </p>
+      )}
       <button
         type="button"
         onClick={() => { setSemFicha(true); setFicha(null); setError(null); }}
