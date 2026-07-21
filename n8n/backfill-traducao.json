@@ -1,0 +1,77 @@
+{
+  "name": "Hub - Backfill traducao noticias (uso unico)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://bcpkwmzglbeguywsmdxm.supabase.co/rest/v1/news_items",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id,titulo,resumo,news_sources!inner(idioma)" },
+            { "name": "news_sources.idioma", "value": "eq.en" },
+            { "name": "status", "value": "eq.published" },
+            { "name": "limit", "value": "500" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "buscar",
+      "name": "Buscar noticias EN",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [20, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Backfill: traduz titulo e resumo das noticias de fontes em ingles para PT.\n// Defensivo: sem helpers ou erro -> mantem original. Detecta idioma e pula o que\n// ja esta em PT. Ritmo controlado para nao estourar o tradutor gratis.\nconst _helpers = (this && this.helpers) ? this.helpers : null;\n\nasync function trad(texto) {\n  const t = String(texto || '').trim();\n  if (!t || !_helpers || !_helpers.httpRequest) return { out: texto, lang: null };\n  try {\n    const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt&dt=t&q=' + encodeURIComponent(t.slice(0, 1500));\n    const r = await _helpers.httpRequest({ url, json: true });\n    const lang = Array.isArray(r) ? r[2] : null;\n    if (lang === 'pt') return { out: texto, lang };\n    const segs = (Array.isArray(r) && Array.isArray(r[0])) ? r[0] : [];\n    const o = segs.map((s) => (Array.isArray(s) ? s[0] : '')).join('').trim();\n    return { out: o || texto, lang };\n  } catch (e) {\n    return { out: texto, lang: null };\n  }\n}\n\nlet rows = $input.all().map((i) => i.json);\nif (rows.length === 1 && Array.isArray(rows[0])) rows = rows[0];\n\nconst out = [];\nlet traduzidos = 0;\nfor (const row of rows) {\n  if (!row || !row.id) continue;\n  const tt = await trad(row.titulo);\n  let rr = { out: row.resumo || null };\n  if (row.resumo) rr = await trad(row.resumo);\n  const novoTitulo = (tt.out || '').slice(0, 300) || row.titulo;\n  if (novoTitulo !== row.titulo) traduzidos++;\n  out.push({ json: { id: row.id, titulo: novoTitulo, resumo: rr.out || null } });\n  await new Promise((r) => setTimeout(r, 120));\n}\nconsole.log('Backfill: ' + out.length + ' itens, ' + traduzidos + ' com titulo alterado');\nreturn out;\n"
+      },
+      "id": "traduzir",
+      "name": "Traduzir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://bcpkwmzglbeguywsmdxm.supabase.co/rest/v1/news_items?id=eq.{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Prefer", "value": "return=minimal" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ titulo: $json.titulo, resumo: $json.resumo }) }}",
+        "options": {}
+      },
+      "id": "gravar",
+      "name": "Gravar traducao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 0],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Executar manualmente": { "main": [[{ "node": "Buscar noticias EN", "type": "main", "index": 0 }]] },
+    "Buscar noticias EN": { "main": [[{ "node": "Traduzir", "type": "main", "index": 0 }]] },
+    "Traduzir": { "main": [[{ "node": "Gravar traducao", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
