@@ -37,14 +37,30 @@ export function Badge({ badge }: { badge: ToolBadge }) {
   );
 }
 
+/**
+ * Placa de ícone com leve gradiente e anel — dá um respiro visual aos cards
+ * mantendo a identidade (navy + ciano/azul), sem depender de imagens externas.
+ */
+export function IconTile({ icon, size = "md" }: { icon?: string; size?: "sm" | "md" | "lg" }) {
+  const dim = size === "lg" ? "h-14 w-14 text-2xl" : size === "md" ? "h-11 w-11 text-xl" : "h-9 w-9 text-lg";
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex ${dim} shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-info-500/20 to-action-500/10 ring-1 ring-inset ring-white/10 transition group-hover:ring-info-500/40`}
+    >
+      {icon}
+    </span>
+  );
+}
+
 export function ToolCard({ tool, compact = false }: { tool: Tool; compact?: boolean }) {
   const cat = CATEGORIES.find((c) => c.slug === tool.category);
   return (
     <Link
       href={`/ferramentas/${tool.slug}/`}
-      className="card-surface group flex flex-col gap-2 p-5 transition hover:-translate-y-0.5 hover:border-info-500/50 hover:shadow-lg hover:shadow-info-500/5"
+      className="card-surface group flex flex-col gap-2.5 p-5 transition hover:-translate-y-0.5 hover:border-info-500/50 hover:shadow-lg hover:shadow-info-500/5"
     >
-      <span aria-hidden="true" className="text-xl">{cat?.icon}</span>
+      <IconTile icon={cat?.icon} size="sm" />
       <span className="font-display text-[0.95rem] font-bold leading-snug group-hover:text-info-400">
         {tool.title}
       </span>

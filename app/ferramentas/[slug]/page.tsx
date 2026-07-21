@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { TOOLS, getTool, getCategory, toolsByCategory } from "@/lib/registry";
-import { Breadcrumbs, Badge, SourceNote, CtaBlock, ToolCard } from "@/components/ui";
+import { Breadcrumbs, Badge, SourceNote, CtaBlock, ToolCard, IconTile } from "@/components/ui";
 import { ToolRunner } from "@/components/tools/ToolRunner";
 import { waLink } from "@/lib/config";
 import { SITE_URL } from "@/app/layout";
@@ -81,8 +81,14 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       />
 
       <header className="mb-7">
-        <h1 className="text-2xl font-extrabold md:text-3xl">{tool.title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-300 md:text-base">
+        <div className="flex items-start gap-3">
+          <IconTile icon={cat.icon} size="lg" />
+          <div>
+            <h1 className="text-2xl font-extrabold md:text-3xl">{tool.title}</h1>
+            <p className="mt-1 font-display text-sm font-semibold text-info-400">{tool.tagline}</p>
+          </div>
+        </div>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300 md:text-base">
           {tool.description}
         </p>
         {tool.badges.length > 0 && (

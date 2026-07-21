@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { CATEGORIES, featuredTools, newTools } from "@/lib/registry";
-import { ToolCard, CtaBlock } from "@/components/ui";
+import { CATEGORIES, TOOLS, featuredTools, newTools } from "@/lib/registry";
+import { ToolCard, CtaBlock, IconTile } from "@/components/ui";
 import { waLink } from "@/lib/config";
+
+/** Número exibido no hero — arredondado para baixo em dezena, para não "vender" número quebrado. */
+const TOTAL_FERRAMENTAS = Math.floor(TOOLS.length / 10) * 10;
 
 export default function Home() {
   const featured = featuredTools();
@@ -10,27 +13,48 @@ export default function Home() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="mx-auto max-w-7xl px-4 pb-10 pt-12 md:pt-16">
-        <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-info-500/30 bg-info-500/10 px-3 py-1 text-[0.72rem] font-semibold text-info-400">
-          Feito para quem trabalha com marketing digital no Brasil
-        </p>
-        <h1 className="max-w-3xl text-3xl font-extrabold leading-[1.15] md:text-5xl">
-          O centro de ferramentas para{" "}
-          <span className="text-info-400">crescer no marketing digital</span>
-        </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-300 md:text-lg">
-          Teste, calcule, converta e diagnostique — em português, com metodologia clara e sem
-          precisar de cadastro. A maior parte das ferramentas roda direto no seu navegador, sem
-          enviar arquivo para lugar nenhum.
-        </p>
+      <section className="relative overflow-hidden">
+        {/* Brilhos decorativos (sem imagem externa) — dão profundidade ao topo. */}
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-96 w-96 rounded-full bg-info-500/10 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/4 -top-10 h-72 w-72 rounded-full bg-action-500/10 blur-3xl" />
+        <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-12 md:pt-16">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-info-500/30 bg-info-500/10 px-3 py-1 text-[0.72rem] font-semibold text-info-400">
+            Feito para quem trabalha com marketing digital no Brasil
+          </p>
+          <h1 className="max-w-3xl text-3xl font-extrabold leading-[1.15] md:text-5xl">
+            O centro de ferramentas para{" "}
+            <span className="bg-gradient-to-r from-info-400 to-action-400 bg-clip-text text-transparent">crescer no marketing digital</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-300 md:text-lg">
+            Teste, calcule, converta e diagnostique — em português, com metodologia clara e sem
+            precisar de cadastro. A maior parte das ferramentas roda direto no seu navegador, sem
+            enviar arquivo para lugar nenhum.
+          </p>
 
-        <div className="mt-7 flex flex-wrap gap-3">
-          <Link href="/ferramentas/" className="btn-primary">
-            Ver todas as ferramentas
-          </Link>
-          <Link href="/ferramentas/velocidade-e-seo/" className="btn-ghost">
-            Testar velocidade do meu site
-          </Link>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link href="/ferramentas/" className="btn-primary">
+              Ver todas as ferramentas
+            </Link>
+            <Link href="/ferramentas/velocidade-e-seo/" className="btn-ghost">
+              Testar velocidade do meu site
+            </Link>
+          </div>
+
+          {/* Prova de tamanho — números reais do catálogo, sem inventar métrica. */}
+          <dl className="mt-9 flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <dt className="mono text-2xl font-bold text-ink-100">{TOTAL_FERRAMENTAS}+</dt>
+              <dd className="text-xs text-ink-400">ferramentas prontas</dd>
+            </div>
+            <div>
+              <dt className="mono text-2xl font-bold text-ink-100">{CATEGORIES.length}</dt>
+              <dd className="text-xs text-ink-400">áreas de trabalho</dd>
+            </div>
+            <div>
+              <dt className="mono text-2xl font-bold text-ink-100">0</dt>
+              <dd className="text-xs text-ink-400">cadastro para usar</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
@@ -47,10 +71,10 @@ export default function Home() {
               <Link
                 key={cat.slug}
                 href={`/ferramentas/categoria/${cat.slug}/`}
-                className="card-surface group p-5 transition hover:-translate-y-0.5 hover:border-info-500/50"
+                className="card-surface group p-5 transition hover:-translate-y-0.5 hover:border-info-500/50 hover:shadow-lg hover:shadow-info-500/5"
               >
-                <span aria-hidden="true" className="text-2xl">{cat.icon}</span>
-                <p className="mt-2 font-display text-sm font-bold group-hover:text-info-400">
+                <IconTile icon={cat.icon} size="md" />
+                <p className="mt-3 font-display text-sm font-bold group-hover:text-info-400">
                   {cat.label}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">{cat.description}</p>
