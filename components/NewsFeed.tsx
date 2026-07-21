@@ -25,6 +25,7 @@ interface NewsItem {
 
 const CATEGORIAS: { slug: string; label: string }[] = [
   { slug: "todas", label: "Todas" },
+  { slug: "marketing", label: "Marketing" },
   { slug: "ia", label: "Inteligência artificial" },
   { slug: "google", label: "Google" },
   { slug: "meta", label: "Meta" },
