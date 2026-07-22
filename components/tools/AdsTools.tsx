@@ -111,6 +111,38 @@ function gerarCaminho(b: Brief): [string, string] {
   return [p1.replace(/\s+/g, "-"), p2.replace(/\s+/g, "-")];
 }
 
+/** Sitelinks: links extras que aparecem embaixo do anúncio (texto ≤ 25). */
+function gerarSitelinks(b: Brief): string[] {
+  const cands = [
+    b.cta && cap1(b.cta),
+    "Nossos serviços",
+    b.produto && `Sobre ${b.produto}`,
+    "Peça um orçamento",
+    b.cidade && `Atendemos ${b.cidade}`,
+    "Fale no WhatsApp",
+  ];
+  return dentroDoLimite(cands, LIM.sitelinkTexto).slice(0, 4);
+}
+
+/** Títulos possíveis de snippet estruturado (categorias que o Google aceita). */
+const SNIPPET_HEADERS = ["Serviços", "Tipos", "Marcas", "Bairros atendidos", "Cursos", "Modelos", "Estilos", "Destaques"];
+
+/** Snippet estruturado: um título + lista de itens (cada valor ≤ 25). */
+function gerarSnippet(b: Brief): { header: string; valores: string[] } {
+  const valores = dentroDoLimite(
+    [
+      b.beneficio && cap1(b.beneficio),
+      b.diferencial && cap1(b.diferencial),
+      b.produto && cap1(b.produto),
+      "Atendimento rápido",
+      "Orçamento grátis",
+      b.cidade && cap1(b.cidade),
+    ],
+    LIM.snippetValor
+  ).slice(0, 6);
+  return { header: "Serviços", valores };
+}
+
 // ── Sub-componentes ──────────────────────────────────────────────
 
 function Counter({ value, limit }: { value: string; limit: number }) {
@@ -232,6 +264,9 @@ export function GoogleAdsTool() {
   const [descricoes, setDescricoes] = useState<string[]>([]);
   const [callouts, setCallouts] = useState<string[]>([]);
   const [caminho, setCaminho] = useState<[string, string]>(["", ""]);
+  const [sitelinks, setSitelinks] = useState<string[]>([]);
+  const [snippetHeader, setSnippetHeader] = useState("Serviços");
+  const [snippetValores, setSnippetValores] = useState<string[]>([]);
   const [gerado, setGerado] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [iaLoading, setIaLoading] = useState(false);
@@ -242,11 +277,19 @@ export function GoogleAdsTool() {
 
   const podeGerar = brief.produto.trim().length >= 3 || brief.keyword.trim().length >= 3;
 
+  const preencherExtensoes = () => {
+    setSitelinks(gerarSitelinks(brief));
+    const snip = gerarSnippet(brief);
+    setSnippetHeader(snip.header);
+    setSnippetValores(snip.valores);
+  };
+
   const gerar = () => {
     setTitulos(gerarTitulos(brief));
     setDescricoes(gerarDescricoes(brief));
     setCallouts(gerarCallouts(brief));
     setCaminho(gerarCaminho(brief));
+    preencherExtensoes();
     setGerado(true);
     setCopiado(false);
   };
@@ -279,6 +322,7 @@ export function GoogleAdsTool() {
       setDescricoes(descs.length ? descs : gerarDescricoes(brief));
       setCallouts(asArray(data.callouts).slice(0, 6));
       setCaminho(gerarCaminho(brief));
+      preencherExtensoes();
       setGerado(true);
       setCopiado(false);
     } catch {
@@ -318,8 +362,18 @@ export function GoogleAdsTool() {
       linhas.push("\nFRASES DE DESTAQUE (callouts):");
       c.forEach((x) => linhas.push(`  • ${x}`));
     }
+    const sl = sitelinks.filter((x) => x.trim());
+    if (sl.length) {
+      linhas.push("\nSITELINKS (texto máx. 25 caracteres):");
+      sl.forEach((x) => linhas.push(`  • ${x}`));
+    }
+    const sv = snippetValores.filter((x) => x.trim());
+    if (sv.length) {
+      linhas.push(`\nSNIPPET ESTRUTURADO — ${snippetHeader}:`);
+      linhas.push(`  ${sv.join(", ")}`);
+    }
     return linhas.join("\n");
-  }, [titulos, descricoes, callouts, caminho]);
+  }, [titulos, descricoes, callouts, caminho, sitelinks, snippetHeader, snippetValores]);
 
   const copiarTudo = async () => {
     try {
@@ -437,6 +491,57 @@ export function GoogleAdsTool() {
             onChange={setCallouts}
             placeholder="Frase de destaque"
           />
+
+          <ListaEditavel
+            titulo="Sitelinks (links extras)"
+            dica="Links que aparecem embaixo do anúncio (ex.: 'Nossos serviços', 'Peça um orçamento'). No Google Ads, cada um leva a uma página do site."
+            itens={sitelinks}
+            limite={LIM.sitelinkTexto}
+            max={6}
+            onChange={setSitelinks}
+            placeholder="Texto do sitelink"
+          />
+
+          <section className="card-surface p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-display text-sm font-bold">Snippet estruturado</h3>
+              <span className="mono text-[0.7rem] text-ink-400">
+                {snippetValores.filter((x) => x.trim() && x.length <= LIM.snippetValor).length} itens
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-ink-400">
+              Uma lista de itens sob um título (ex.: “Serviços: consórcio, financiamento, seguro”).
+            </p>
+            <label className="mt-2.5 block text-xs font-semibold text-ink-300">
+              Título
+              <select value={snippetHeader} onChange={(e) => setSnippetHeader(e.target.value)} className="input-base mt-1 font-normal">
+                {SNIPPET_HEADERS.map((h) => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-3 space-y-2">
+              {snippetValores.map((it, i) => (
+                <CampoContado
+                  key={i}
+                  value={it}
+                  limit={LIM.snippetValor}
+                  placeholder="Item"
+                  onChange={(v) => setSnippetValores(snippetValores.map((x, idx) => (idx === i ? v : x)))}
+                  onRemove={snippetValores.length > 1 ? () => setSnippetValores(snippetValores.filter((_, idx) => idx !== i)) : undefined}
+                />
+              ))}
+            </div>
+            {snippetValores.length < 10 && (
+              <button
+                type="button"
+                onClick={() => setSnippetValores([...snippetValores, ""])}
+                className="mt-2.5 text-xs font-semibold text-info-400 hover:text-info-300"
+              >
+                + Adicionar item
+              </button>
+            )}
+          </section>
 
           <section className="card-surface p-4">
             <h3 className="font-display text-sm font-bold">Caminho de exibição</h3>
