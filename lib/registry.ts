@@ -22,6 +22,7 @@ export type FuncArea =
 export type ToolBadge =
   | "local-only" // processa no navegador, nada sai do dispositivo
   | "usa-api" // depende de API externa identificada
+  | "servidor" // processa no nosso servidor (ex.: lê um site público informado)
   | "beta"
   | "novo";
 
@@ -157,6 +158,18 @@ export const TOOLS: Tool[] = [
     category: "seo",
     keywords: ["schema", "json-ld", "structured data", "rich snippet", "faq", "localbusiness", "produto"],
     badges: ["local-only", "novo"],
+  },
+
+  {
+    slug: "verificador-tags-pixels",
+    title: "Verificador de tags e pixels",
+    tagline: "Veja o que está instalado em qualquer site",
+    description:
+      "Digite o endereço de um site e descubra quais tags e pixels estão instalados: Google Analytics (GA4), Tag Manager, Pixel da Meta, Google Ads, TikTok e mais.",
+    category: "seo",
+    keywords: ["tags", "pixel", "ga4", "google analytics", "gtm", "tag manager", "meta pixel", "facebook pixel", "google ads", "tiktok", "rastreamento", "trackeamento", "auditoria"],
+    badges: ["servidor", "novo"],
+    featured: true,
   },
 
   // ═══════════════ Tráfego pago ═══════════════

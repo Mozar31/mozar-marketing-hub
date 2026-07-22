@@ -32,6 +32,7 @@ const BreakEvenTool = d(() => import("./MarketingTools").then((m) => ({ default:
 const UtmBuilder = d(() => import("./MarketingTools").then((m) => ({ default: m.UtmBuilder })));
 const WhatsappTool = d(() => import("./MarketingTools").then((m) => ({ default: m.WhatsappTool })));
 const GoogleAdsTool = d(() => import("./AdsTools").then((m) => ({ default: m.GoogleAdsTool })));
+const TagsTool = d(() => import("./SiteTools").then((m) => ({ default: m.TagsTool })));
 
 const ColorStudio = d(() => import("./TextTools").then((m) => ({ default: m.ColorStudio })));
 const JsonTool = d(() => import("./TextTools").then((m) => ({ default: m.JsonTool })));
@@ -45,6 +46,7 @@ const CreativePresets = d(() => import("./DataTools").then((m) => ({ default: m.
 const CUSTOM: Record<string, ComponentType> = {
   "velocidade-e-seo": SpeedTool,
   "ficha-google": GmbTool,
+  "verificador-tags-pixels": TagsTool,
   "previa-google-e-redes": SerpPreview,
   "dados-estruturados": SchemaGenerator,
 

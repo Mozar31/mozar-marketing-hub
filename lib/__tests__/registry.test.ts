@@ -54,11 +54,12 @@ describe("registry — integridade do catálogo", () => {
     }
   });
 
-  it("cada ferramenta declara se roda local ou usa API — nunca os dois", () => {
+  it("cada ferramenta declara onde roda (local, API externa ou nosso servidor) — nunca contraditório", () => {
     for (const t of TOOLS) {
       const local = t.badges.includes("local-only");
       const api = t.badges.includes("usa-api");
-      expect(local || api, `${t.slug} sem selo de origem`).toBe(true);
+      const servidor = t.badges.includes("servidor");
+      expect(local || api || servidor, `${t.slug} sem selo de origem`).toBe(true);
       expect(local && api, `${t.slug} com selos contraditórios`).toBe(false);
     }
   });
@@ -79,7 +80,7 @@ describe("registry — integridade do catálogo", () => {
 describe("registry — nenhum botão vazio (PROMPT 17)", () => {
   /** Slugs com interface própria, espelhando o CUSTOM do ToolRunner. */
   const CUSTOM = [
-    "velocidade-e-seo", "ficha-google", "previa-google-e-redes", "dados-estruturados",
+    "velocidade-e-seo", "ficha-google", "verificador-tags-pixels", "previa-google-e-redes", "dados-estruturados",
     "simulador-roi", "calculadora-de-midia", "break-even-cac-ltv", "construtor-utm",
     "gerador-google-ads",
     "link-whatsapp", "presets-de-criativos", "estudio-de-cores",

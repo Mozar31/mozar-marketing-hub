@@ -13,6 +13,11 @@ const BADGE_STYLE: Record<ToolBadge, { label: string; className: string; title: 
     className: "bg-info-500/15 text-info-400 border-info-500/30",
     title: "Consulta uma API externa oficial; a fonte é identificada no resultado",
   },
+  servidor: {
+    label: "servidor",
+    className: "bg-action-500/15 text-action-400 border-action-500/30",
+    title: "Processa no nosso servidor — lê apenas a página pública que você informar",
+  },
   beta: {
     label: "beta",
     className: "bg-warn-500/15 text-warn-400 border-warn-500/30",
