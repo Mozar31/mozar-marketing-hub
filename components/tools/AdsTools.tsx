@@ -248,6 +248,44 @@ function ListaEditavel({
   );
 }
 
+/**
+ * Prévia visual de como o anúncio aparece na busca do Google. Renderiza um card
+ * branco no estilo Google (independente do tema) a partir dos textos gerados.
+ */
+function AdPreview({
+  titulos, descricoes, caminho, sitelinks,
+}: { titulos: string[]; descricoes: string[]; caminho: [string, string]; sitelinks: string[] }) {
+  const t = titulos.filter((x) => x.trim());
+  const d = descricoes.filter((x) => x.trim());
+  const head = t.slice(0, 3).join(" | ") || "Seu título aqui";
+  const desc = (d.slice(0, 2).join(" ") || "Sua descrição aparece aqui.").slice(0, 180);
+  const path = ["seusite.com.br", caminho[0], caminho[1]].filter(Boolean).join("/");
+  const sl = sitelinks.filter((x) => x.trim()).slice(0, 4);
+  return (
+    <section className="card-surface p-4">
+      <h3 className="font-display text-sm font-bold">👁️ Prévia no Google</h3>
+      <p className="mt-0.5 text-xs text-ink-400">
+        É mais ou menos assim que o anúncio aparece na busca. O Google escolhe automaticamente quais títulos e descrições mostrar.
+      </p>
+      <div className="mt-3 rounded-lg bg-white p-4 font-sans text-black">
+        <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
+          <span className="rounded-sm border border-gray-400 px-1 font-bold text-gray-800">Anúncio</span>
+          <span className="text-gray-700">{path}</span>
+        </div>
+        <p className="mt-1 text-lg leading-snug text-[#1a0dab]">{head}</p>
+        <p className="mt-0.5 text-sm leading-snug text-gray-700">{desc}</p>
+        {sl.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+            {sl.map((s) => (
+              <span key={s} className="text-sm text-[#1a0dab] hover:underline">{s}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ── Componente principal ─────────────────────────────────────────
 
 export function GoogleAdsTool() {
@@ -463,6 +501,8 @@ export function GoogleAdsTool() {
             2. Revise e ajuste. O contador fica <span className="text-ok-400">verde</span> quando está dentro do limite e{" "}
             <span className="text-bad-400">vermelho</span> quando passou.
           </p>
+
+          <AdPreview titulos={titulos} descricoes={descricoes} caminho={caminho} sitelinks={sitelinks} />
 
           <ListaEditavel
             titulo="Títulos"
