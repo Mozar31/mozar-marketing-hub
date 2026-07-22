@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { fmtBRL, fmtNum, fmtDec, loadScript, canvasToBlob } from "@/lib/tools/runtime";
+import { readShareParams, copyShareLink } from "@/lib/tools/share";
 import { LIB } from "@/lib/config";
 
 /* ════════════════════════════════════════════════════════════
@@ -9,11 +10,20 @@ import { LIB } from "@/lib/config";
    Preenche o que falta a partir do que você tem.
    ════════════════════════════════════════════════════════════ */
 export function MediaCalculator() {
-  const [invest, setInvest] = useState("1000");
-  const [impr, setImpr] = useState("100000");
-  const [cliques, setCliques] = useState("1500");
-  const [conv, setConv] = useState("45");
-  const [receita, setReceita] = useState("9000");
+  const [init] = useState(readShareParams);
+  const [invest, setInvest] = useState(init.invest ?? "1000");
+  const [impr, setImpr] = useState(init.impr ?? "100000");
+  const [cliques, setCliques] = useState(init.cliques ?? "1500");
+  const [conv, setConv] = useState(init.conv ?? "45");
+  const [receita, setReceita] = useState(init.receita ?? "9000");
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarLink = async () => {
+    if (await copyShareLink({ invest, impr, cliques, conv, receita })) {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
+  };
 
   const num = (v: string) => {
     const x = parseFloat(v.replace(",", "."));
@@ -44,9 +54,14 @@ export function MediaCalculator() {
         <p className="text-sm text-ink-400">
           Preencha os números que você tem — as métricas derivadas são calculadas automaticamente.
         </p>
-        <button type="button" onClick={limpar} className="btn-ghost shrink-0 text-xs">
-          🧹 Limpar
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={copiarLink} className="btn-ghost text-xs" title="Copia um link com estes números para compartilhar">
+            {copiado ? "✓ Link copiado!" : "🔗 Copiar link"}
+          </button>
+          <button type="button" onClick={limpar} className="btn-ghost text-xs">
+            🧹 Limpar
+          </button>
+        </div>
       </div>
       <div className="card-surface grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
         <NumField label="Investimento (R$)" value={invest} onChange={setInvest} />
@@ -80,11 +95,20 @@ export function MediaCalculator() {
    Break-even ROAS, CAC e LTV (P0)
    ════════════════════════════════════════════════════════════ */
 export function BreakEvenTool() {
-  const [ticket, setTicket] = useState("500");
-  const [margem, setMargem] = useState("40");
-  const [compras, setCompras] = useState("2");
-  const [meses, setMeses] = useState("12");
-  const [cacAtual, setCacAtual] = useState("80");
+  const [init] = useState(readShareParams);
+  const [ticket, setTicket] = useState(init.ticket ?? "500");
+  const [margem, setMargem] = useState(init.margem ?? "40");
+  const [compras, setCompras] = useState(init.compras ?? "2");
+  const [meses, setMeses] = useState(init.meses ?? "12");
+  const [cacAtual, setCacAtual] = useState(init.cacAtual ?? "80");
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarLink = async () => {
+    if (await copyShareLink({ ticket, margem, compras, meses, cacAtual })) {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
+  };
 
   const num = (v: string) => {
     const x = parseFloat(v.replace(",", "."));
@@ -110,10 +134,15 @@ export function BreakEvenTool() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-ink-400">
-        Descubra o mínimo que sua campanha precisa entregar para não dar prejuízo — e até quanto vale
-        a pena pagar por um cliente novo.
-      </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <p className="max-w-xl text-sm text-ink-400">
+          Descubra o mínimo que sua campanha precisa entregar para não dar prejuízo — e até quanto vale
+          a pena pagar por um cliente novo.
+        </p>
+        <button type="button" onClick={copiarLink} className="btn-ghost shrink-0 text-xs" title="Copia um link com estes números para compartilhar">
+          {copiado ? "✓ Link copiado!" : "🔗 Copiar link"}
+        </button>
+      </div>
       <div className="card-surface grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
         <NumField label="Ticket médio (R$)" value={ticket} onChange={setTicket} />
         <NumField label="Margem de lucro (%)" value={margem} onChange={setMargem} hint="Quanto sobra depois dos custos" />
