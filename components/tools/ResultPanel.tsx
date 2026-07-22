@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ToolOutput } from "@/lib/tools/runtime";
 
 /** Painel de resultado padronizado: downloads, texto copiável e nota. */
-export function ResultPanel({ output }: { output: ToolOutput }) {
+export function ResultPanel({ output, hidePreview = false }: { output: ToolOutput; hidePreview?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   const urls = useMemo(
@@ -60,7 +60,7 @@ export function ResultPanel({ output }: { output: ToolOutput }) {
 
       {urls.length > 0 && (
         <div className="mt-4 space-y-3">
-          {urls.some((u) => u.preview) && (
+          {!hidePreview && urls.some((u) => u.preview) && (
             <div className="flex flex-wrap gap-3">
               {urls.filter((u) => u.preview).map((u) => (
                 // eslint-disable-next-line @next/next/no-img-element

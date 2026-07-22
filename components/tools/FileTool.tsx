@@ -1,9 +1,66 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getFileTool, type Opts } from "@/lib/tools/converters";
 import type { ToolOutput } from "@/lib/tools/runtime";
 import { ResultPanel } from "./ResultPanel";
+
+function fmtBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1024 / 1024).toFixed(2)} MB`;
+}
+
+/** Comparativo antes/depois para ferramentas de imagem (1 entra, 1 sai). */
+function ImageBeforeAfter({ original, resultBlob }: { original: File; resultBlob: Blob }) {
+  const [urls, setUrls] = useState<{ o: string; r: string } | null>(null);
+  const [dim, setDim] = useState<{ o: string; r: string }>({ o: "…", r: "…" });
+
+  useEffect(() => {
+    const o = URL.createObjectURL(original);
+    const r = URL.createObjectURL(resultBlob);
+    setUrls({ o, r });
+    const medir = (url: string, key: "o" | "r") => {
+      const img = new Image();
+      img.onload = () => setDim((d) => ({ ...d, [key]: `${img.naturalWidth}×${img.naturalHeight}` }));
+      img.src = url;
+    };
+    medir(o, "o");
+    medir(r, "r");
+    return () => { URL.revokeObjectURL(o); URL.revokeObjectURL(r); };
+  }, [original, resultBlob]);
+
+  const oBytes = original.size;
+  const rBytes = resultBlob.size;
+  const pct = oBytes > 0 ? Math.round((1 - rBytes / oBytes) * 100) : 0;
+
+  return (
+    <div className="card-surface mt-5 p-5">
+      <p className="font-display text-sm font-bold">Antes e depois</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <figure className="min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {urls && <img src={urls.o} alt="Imagem original" className="max-h-56 w-full rounded-lg bg-white object-contain p-2" />}
+          <figcaption className="mt-1.5 text-xs text-ink-400">
+            <span className="font-semibold text-ink-300">Antes</span> · {dim.o} · {fmtBytes(oBytes)}
+          </figcaption>
+        </figure>
+        <figure className="min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {urls && <img src={urls.r} alt="Imagem depois" className="max-h-56 w-full rounded-lg bg-white object-contain p-2" />}
+          <figcaption className="mt-1.5 text-xs text-ink-400">
+            <span className="font-semibold text-ink-300">Depois</span> · {dim.r} · {fmtBytes(rBytes)}
+          </figcaption>
+        </figure>
+      </div>
+      {pct > 0 ? (
+        <p className="mt-3 text-sm font-semibold text-ok-400">↓ {pct}% mais leve ({fmtBytes(oBytes - rBytes)} economizados)</p>
+      ) : pct < 0 ? (
+        <p className="mt-3 text-sm text-ink-400">Ficou {-pct}% maior — normal quando muda de formato ou aumenta a qualidade.</p>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * Casca genérica das ferramentas que recebem arquivo.
@@ -148,7 +205,20 @@ export function FileTool({ slug }: { slug: string }) {
         </div>
       )}
 
-      {result && <ResultPanel output={result} />}
+      {result && (() => {
+        const first = result.files?.[0];
+        const showBA =
+          !!first?.preview &&
+          result.files?.length === 1 &&
+          !!lastFiles && lastFiles.length === 1 &&
+          lastFiles[0]!.type.startsWith("image/");
+        return (
+          <>
+            {showBA && <ImageBeforeAfter original={lastFiles![0]!} resultBlob={first!.blob} />}
+            <ResultPanel output={result} hidePreview={showBA} />
+          </>
+        );
+      })()}
     </div>
   );
 }
