@@ -8,6 +8,26 @@ import { loadImageFile } from "@/lib/tools/runtime";
 const toHex = (r: number, g: number, b: number) =>
   "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase();
 
+/**
+ * Relatório de contraste WCAG por tamanho de texto.
+ * Texto normal (corpo): AA ≥ 4,5 · AAA ≥ 7.
+ * Texto grande (títulos ≥ ~24px, ou ≥ ~18px em negrito): AA ≥ 3 · AAA ≥ 4,5.
+ */
+function ContrastReport({ ratio, textClass }: { ratio: number; textClass: string }) {
+  const nivel = (ok: boolean, label: string) => (
+    <span className={ok ? "font-semibold" : "opacity-50"}>{label} {ok ? "✓" : "✗"}</span>
+  );
+  return (
+    <div className={`mono mt-1 ${textClass}`}>
+      <div className="text-xs">{ratio.toFixed(2)}:1</div>
+      <div className="mt-1.5 space-y-0.5 text-[0.62rem]">
+        <div>Texto normal: {nivel(ratio >= 4.5, "AA")} · {nivel(ratio >= 7, "AAA")}</div>
+        <div>Texto grande: {nivel(ratio >= 3, "AA")} · {nivel(ratio >= 4.5, "AAA")}</div>
+      </div>
+    </div>
+  );
+}
+
 /** HSL (h em graus, s/l em 0–1) → HEX. Usado nas harmonias de cor. */
 function hslToHex(h: number, s: number, l: number): string {
   h = ((h % 360) + 360) % 360;
@@ -264,18 +284,18 @@ export function ColorStudio() {
 
           <div className="card-surface mt-5 p-5">
             <p className="font-display text-sm font-bold">Contraste e acessibilidade</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-400">
+              <strong className="text-ink-300">AA</strong> é o mínimo recomendado; <strong className="text-ink-300">AAA</strong> é o ideal.
+              Texto <strong className="text-ink-300">grande</strong> (títulos) exige menos contraste que texto <strong className="text-ink-300">normal</strong> (corpo).
+            </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg p-4" style={{ background: data.hex }}>
                 <p className="text-sm font-semibold text-white">Texto branco sobre a cor</p>
-                <p className="mono mt-1 text-xs text-white/90">
-                  {data.cWhite.toFixed(2)}:1 {data.cWhite >= 4.5 ? "✅ aprovado" : "⚠️ abaixo de 4,5"}
-                </p>
+                <ContrastReport ratio={data.cWhite} textClass="text-white/90" />
               </div>
               <div className="rounded-lg p-4" style={{ background: data.hex }}>
                 <p className="text-sm font-semibold text-black">Texto preto sobre a cor</p>
-                <p className="mono mt-1 text-xs text-black/80">
-                  {data.cBlack.toFixed(2)}:1 {data.cBlack >= 4.5 ? "✅ aprovado" : "⚠️ abaixo de 4,5"}
-                </p>
+                <ContrastReport ratio={data.cBlack} textClass="text-black/80" />
               </div>
             </div>
           </div>

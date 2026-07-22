@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fmtBRL, fmtNum, fmtDec } from "@/lib/tools/runtime";
 
 /**
@@ -37,6 +37,34 @@ export function RoiTool() {
   const [close, setClose] = useState("30");
   const [ticket, setTicket] = useState("500");
   const [margem, setMargem] = useState("100");
+  const [copiado, setCopiado] = useState(false);
+
+  // Ao abrir um link compartilhado, preenche a partir dos parâmetros da URL.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const p = sp.get("plat");
+    if (p && p in PLAT_INFO) setPlat(p as Plat);
+    const setter: Record<string, (v: string) => void> = {
+      invest: setInvest, cpc: setCpc, cpm: setCpm, ctr: setCtr,
+      conv: setConv, close: setClose, ticket: setTicket, margem: setMargem,
+    };
+    for (const [k, set] of Object.entries(setter)) {
+      const v = sp.get(k);
+      if (v !== null) set(v);
+    }
+  }, []);
+
+  const copiarLink = async () => {
+    const sp = new URLSearchParams({ plat, invest, cpc, cpm, ctr, conv, close, ticket, margem });
+    const url = `${window.location.origin}${window.location.pathname}?${sp.toString()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      /* clipboard indisponível — ignora */
+    }
+  };
 
   const isCpm = PLAT_INFO[plat].cpm;
 
@@ -101,13 +129,18 @@ export function RoiTool() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-ink-400">{PLAT_INFO[plat].texto}</p>
-        <button
-          type="button"
-          onClick={() => { setInvest(""); setCpc(""); setCpm(""); setCtr(""); setConv(""); setClose(""); setTicket(""); setMargem(""); }}
-          className="btn-ghost shrink-0 text-xs"
-        >
-          🧹 Limpar
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={copiarLink} className="btn-ghost text-xs" title="Copia um link com estes números para compartilhar">
+            {copiado ? "✓ Link copiado!" : "🔗 Copiar link"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setInvest(""); setCpc(""); setCpm(""); setCtr(""); setConv(""); setClose(""); setTicket(""); setMargem(""); }}
+            className="btn-ghost text-xs"
+          >
+            🧹 Limpar
+          </button>
+        </div>
       </div>
 
       {/* Entradas */}
