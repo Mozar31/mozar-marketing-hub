@@ -119,12 +119,15 @@ export function analisarSeo(html: string, finalUrl: string): ResultadoSeo {
     ? { chave: "charset", titulo: "Codificação (charset)", nivel: "ok", detalhe: "Charset declarado — evita acentos quebrados." }
     : { chave: "charset", titulo: "Codificação (charset)", nivel: "aviso", detalhe: "Sem charset declarado (ex.: <meta charset=\"utf-8\">). Pode causar acentuação quebrada." });
 
-  // 9. Imagens sem alt
+  // 9. Imagens sem alt.
+  // Só conta como problema a imagem SEM o atributo alt. Um alt="" (vazio de
+  // propósito) marca a imagem como decorativa — ex.: logo ao lado do nome da
+  // marca — e é o comportamento correto de acessibilidade, então não acusamos.
   const imgs = html.match(/<img\b[^>]*>/gi) || [];
-  const semAlt = imgs.filter((t) => { const a = lerAtributos(t); return !("alt" in a) || a.alt.trim() === ""; }).length;
+  const semAlt = imgs.filter((t) => !("alt" in lerAtributos(t))).length;
   if (imgs.length === 0) add({ chave: "alt", titulo: "Texto alternativo das imagens (alt)", nivel: "ok", detalhe: "Nenhuma imagem <img> na página inicial para avaliar." });
-  else if (semAlt === 0) add({ chave: "alt", titulo: "Texto alternativo das imagens (alt)", nivel: "ok", valor: `${imgs.length} imagens`, detalhe: "Todas as imagens têm alt — bom para acessibilidade e para o Google Imagens." });
-  else add({ chave: "alt", titulo: "Texto alternativo das imagens (alt)", nivel: "aviso", valor: `${semAlt} de ${imgs.length} sem alt`, detalhe: "Imagens sem alt não são entendidas pelo Google nem por leitores de tela. Descreva o que a imagem mostra." });
+  else if (semAlt === 0) add({ chave: "alt", titulo: "Texto alternativo das imagens (alt)", nivel: "ok", valor: `${imgs.length} imagens`, detalhe: "Todas as imagens declaram alt (mesmo que vazio, para as decorativas) — bom para acessibilidade e para o Google Imagens." });
+  else add({ chave: "alt", titulo: "Texto alternativo das imagens (alt)", nivel: "aviso", valor: `${semAlt} de ${imgs.length} sem alt`, detalhe: "Imagens sem o atributo alt não são entendidas pelo Google nem por leitores de tela. Descreva o que a imagem mostra (ou use alt=\"\" se for puramente decorativa)." });
 
   // 10. Bloqueio de indexação (robots noindex)
   const robots = (metaConteudo(metas, "robots") || "").toLowerCase();

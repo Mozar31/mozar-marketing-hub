@@ -68,11 +68,16 @@ describe("analisarSeo", () => {
     expect(r.pontos.find((p) => p.chave === "robots")?.nivel).toBe("erro");
   });
 
-  it("conta imagens sem alt", () => {
+  it("conta só imagens sem o atributo alt", () => {
     const r = analisarSeo(`<html><head><title>titulo de tamanho ok</title></head><body><h1>a</h1><img src="1.png"><img src="2.png" alt="ok"></body></html>`, "https://exemplo.com/");
     const alt = r.pontos.find((p) => p.chave === "alt");
     expect(alt?.nivel).toBe("aviso");
     expect(alt?.valor).toContain("1 de 2");
+  });
+
+  it("não acusa imagem decorativa com alt vazio (ex.: logo)", () => {
+    const r = analisarSeo(`<html><head><title>titulo de tamanho ok</title></head><body><h1>a</h1><img src="logo.png" alt=""><img src="foto.png" alt="uma foto"></body></html>`, "https://exemplo.com/");
+    expect(r.pontos.find((p) => p.chave === "alt")?.nivel).toBe("ok");
   });
 });
 
