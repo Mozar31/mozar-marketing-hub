@@ -86,7 +86,7 @@ export function Header() {
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
-            className="shrink-0 rounded-lg border border-white/15 p-2.5 lg:hidden"
+            className="shrink-0 rounded-lg border border-white/15 p-2.5 md:hidden"
             aria-label="Abrir menu"
             aria-expanded={mobileOpen}
           >
@@ -102,7 +102,7 @@ export function Header() {
         </div>
 
         {/* ── Linha 2: navegação principal com mega menus ── */}
-        <nav ref={navRef} className="hidden border-t border-white/[0.07] lg:block" aria-label="Navegação principal">
+        <nav ref={navRef} className="hidden border-t border-white/[0.07] md:block" aria-label="Navegação principal">
           <div className="mx-auto flex max-w-7xl items-center gap-1 px-4">
             <MegaItem
               label="Ferramentas"
@@ -174,7 +174,7 @@ export function Header() {
 
         {/* ── Menu mobile (drawer) ── */}
         {mobileOpen && (
-          <nav className="border-t border-white/10 px-4 py-4 lg:hidden" aria-label="Navegação mobile">
+          <nav className="border-t border-white/10 px-4 py-4 md:hidden" aria-label="Navegação mobile">
             <ul className="space-y-1">
               <li>
                 <Link href="/ferramentas/" className="block rounded-lg px-3 py-2.5 font-display font-semibold" onClick={() => setMobileOpen(false)}>

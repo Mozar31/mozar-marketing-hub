@@ -13,10 +13,10 @@ import { TOOLS } from "@/lib/registry";
  * nova URL real e o usuário é redirecionado sem ver erro.
  */
 const LEGACY_MAP: Record<string, string> = (() => {
+  // Só entradas que NÃO derivam de uma ferramenta. `conversores` (sem hash de
+  // ferramenta) apontava para a página de CATEGORIA na v1. As demais (velocidade,
+  // roi, google-meu-negocio) já vêm do loop abaixo via `tool.legacyHash`.
   const map: Record<string, string> = {
-    velocidade: "/ferramentas/velocidade-e-seo/",
-    "google-meu-negocio": "/ferramentas/ficha-google/",
-    roi: "/ferramentas/simulador-roi/",
     conversores: "/ferramentas/categoria/conversores/",
   };
   for (const tool of TOOLS) {
