@@ -250,6 +250,17 @@ export const TOOLS: Tool[] = [
     badges: ["local-only", "novo"],
     featured: true,
   },
+  {
+    slug: "analisador-landing-page",
+    title: "Analisador de landing page",
+    tagline: "Sua página de vendas está pronta para converter?",
+    description:
+      "Cole uma página de vendas e veja se ela converte: proposta, botão de ação, formulário, WhatsApp, prova social, celular, segurança e medição.",
+    category: "trafego",
+    keywords: ["landing page", "pagina de vendas", "conversao", "converter", "cta", "botao de acao", "formulario", "otimizacao", "cro", "vendas"],
+    badges: ["servidor", "novo"],
+    featured: true,
+  },
 
   // ═══════════════ Social e mensagens ═══════════════
   {

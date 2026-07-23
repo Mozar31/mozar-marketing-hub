@@ -36,6 +36,7 @@ const TagsTool = d(() => import("./SiteTools").then((m) => ({ default: m.TagsToo
 const SeoTool = d(() => import("./AuditTools").then((m) => ({ default: m.SeoTool })));
 const LinksTool = d(() => import("./AuditTools").then((m) => ({ default: m.LinksTool })));
 const Auditoria360 = d(() => import("./AuditTools").then((m) => ({ default: m.Auditoria360 })));
+const LandingTool = d(() => import("./AuditTools").then((m) => ({ default: m.LandingTool })));
 
 const ColorStudio = d(() => import("./TextTools").then((m) => ({ default: m.ColorStudio })));
 const JsonTool = d(() => import("./TextTools").then((m) => ({ default: m.JsonTool })));
@@ -57,6 +58,7 @@ const CUSTOM: Record<string, ComponentType> = {
   "dados-estruturados": SchemaGenerator,
 
   "simulador-roi": RoiTool,
+  "analisador-landing-page": LandingTool,
   "calculadora-de-midia": MediaCalculator,
   "break-even-cac-ltv": BreakEvenTool,
   "construtor-utm": UtmBuilder,

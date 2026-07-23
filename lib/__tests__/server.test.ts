@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { detectarTags } from "../server/tags";
 import { analisarSeo } from "../server/seo";
+import { analisarLanding } from "../server/landing";
 import { extrairLinks } from "../server/links";
 import { alvoSeguro, resolverAlvo } from "../server/http";
 
@@ -78,6 +79,40 @@ describe("analisarSeo", () => {
   it("não acusa imagem decorativa com alt vazio (ex.: logo)", () => {
     const r = analisarSeo(`<html><head><title>titulo de tamanho ok</title></head><body><h1>a</h1><img src="logo.png" alt=""><img src="foto.png" alt="uma foto"></body></html>`, "https://exemplo.com/");
     expect(r.pontos.find((p) => p.chave === "alt")?.nivel).toBe("ok");
+  });
+});
+
+describe("analisarLanding", () => {
+  const boa = `<!doctype html><html lang="pt-BR"><head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://www.googletagmanager.com/gtag/js?id=G-ABCDEFGH12"></script>
+    </head><body>
+    <h1>Emagreça com saúde em 90 dias com acompanhamento profissional</h1>
+    <a href="https://wa.me/5551999999999" class="btn">Quero começar agora</a>
+    <form><input type="text" name="nome"><input type="tel" name="telefone"><button>Enviar</button></form>
+    <section>Depoimentos: mais de 500 clientes atendidos, avaliação 5 estrelas.</section>
+    </body></html>`;
+
+  it("dá nota alta para uma landing bem montada", () => {
+    const r = analisarLanding(boa, "https://exemplo.com/");
+    expect(r.resumo.erro).toBe(0);
+    expect(r.nota).toBeGreaterThanOrEqual(85);
+  });
+
+  it("detecta CTA, contato e prova social", () => {
+    const r = analisarLanding(boa, "https://exemplo.com/");
+    expect(r.pontos.find((p) => p.chave === "cta")?.nivel).toBe("ok");
+    expect(r.pontos.find((p) => p.chave === "contato")?.valor).toContain("WhatsApp");
+    expect(r.pontos.find((p) => p.chave === "prova")?.nivel).toBe("ok");
+  });
+
+  it("acusa erros quando falta proposta, CTA e mobile", () => {
+    const r = analisarLanding(`<html><head></head><body><p>bem-vindo ao nosso site institucional</p></body></html>`, "http://exemplo.com/");
+    const erros = r.pontos.filter((p) => p.nivel === "erro").map((p) => p.chave);
+    expect(erros).toContain("proposta");
+    expect(erros).toContain("cta");
+    expect(erros).toContain("mobile");
+    expect(erros).toContain("https");
   });
 });
 
