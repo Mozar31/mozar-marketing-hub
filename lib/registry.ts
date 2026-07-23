@@ -171,6 +171,28 @@ export const TOOLS: Tool[] = [
     badges: ["servidor", "novo"],
     featured: true,
   },
+  {
+    slug: "auditor-seo-tecnico",
+    title: "Auditor de SEO técnico",
+    tagline: "Diagnóstico de SEO on-page em segundos",
+    description:
+      "Digite um site e receba o diagnóstico de SEO on-page: título, descrição, H1, responsividade, canonical, Open Graph, imagens sem alt, indexação e HTTPS.",
+    category: "seo",
+    keywords: ["seo", "auditoria", "on-page", "title", "meta description", "h1", "canonical", "open graph", "indexacao", "https", "tecnico", "site"],
+    badges: ["servidor", "novo"],
+    featured: true,
+  },
+  {
+    slug: "auditoria-360",
+    title: "Auditoria 360 do site",
+    tagline: "Tags, SEO e links quebrados num relatório só",
+    description:
+      "Um raio-X do site em um relatório único: tags e pixels instalados, SEO técnico e links quebrados. Ideal para o diagnóstico inicial de um cliente novo.",
+    category: "seo",
+    keywords: ["auditoria", "360", "diagnostico", "raio-x", "site", "tags", "pixels", "seo", "links quebrados", "cliente", "completo"],
+    badges: ["servidor", "novo"],
+    featured: true,
+  },
 
   // ═══════════════ Tráfego pago ═══════════════
   {
@@ -311,6 +333,17 @@ export const TOOLS: Tool[] = [
   },
 
   // ═══════════════ Web ═══════════════
+  {
+    slug: "links-quebrados",
+    title: "Verificador de links quebrados",
+    tagline: "Ache os links com erro 404 do site",
+    description:
+      "Digite uma página e testamos todos os links dela para achar os quebrados (erro 404 e afins). Link quebrado atrapalha a experiência e o SEO do site.",
+    category: "web",
+    keywords: ["links quebrados", "404", "link morto", "broken links", "erro", "verificar links", "auditoria", "manutencao", "site"],
+    badges: ["servidor", "novo"],
+    featured: true,
+  },
   {
     slug: "formatar-json",
     title: "Formatar e validar JSON",

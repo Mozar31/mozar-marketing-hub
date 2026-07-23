@@ -33,6 +33,9 @@ const UtmBuilder = d(() => import("./MarketingTools").then((m) => ({ default: m.
 const WhatsappTool = d(() => import("./MarketingTools").then((m) => ({ default: m.WhatsappTool })));
 const GoogleAdsTool = d(() => import("./AdsTools").then((m) => ({ default: m.GoogleAdsTool })));
 const TagsTool = d(() => import("./SiteTools").then((m) => ({ default: m.TagsTool })));
+const SeoTool = d(() => import("./AuditTools").then((m) => ({ default: m.SeoTool })));
+const LinksTool = d(() => import("./AuditTools").then((m) => ({ default: m.LinksTool })));
+const Auditoria360 = d(() => import("./AuditTools").then((m) => ({ default: m.Auditoria360 })));
 
 const ColorStudio = d(() => import("./TextTools").then((m) => ({ default: m.ColorStudio })));
 const JsonTool = d(() => import("./TextTools").then((m) => ({ default: m.JsonTool })));
@@ -47,6 +50,9 @@ const CUSTOM: Record<string, ComponentType> = {
   "velocidade-e-seo": SpeedTool,
   "ficha-google": GmbTool,
   "verificador-tags-pixels": TagsTool,
+  "auditor-seo-tecnico": SeoTool,
+  "auditoria-360": Auditoria360,
+  "links-quebrados": LinksTool,
   "previa-google-e-redes": SerpPreview,
   "dados-estruturados": SchemaGenerator,
 

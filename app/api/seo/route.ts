@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { resolverAlvo, buscarHtml } from "@/lib/server/http";
-import { detectarTags } from "@/lib/server/tags";
+import { analisarSeo } from "@/lib/server/seo";
 
 /**
- * Verificador de tags e pixels (#03) — roda no SERVIDOR (motor ligado na Fase B).
- * Lê o HTML público do site informado e detecta ferramentas de marketing/medição
- * instaladas. Nenhum dado do usuário é gravado; só lemos a página pública.
+ * Auditor de SEO técnico (#17) — roda no SERVIDOR (motor, Fase B).
+ * Lê a página pública e avalia os pontos de SEO on-page (title, description,
+ * H1, viewport, canonical, Open Graph, alt de imagens, indexação, HTTPS).
  */
 
 export const runtime = "nodejs";
@@ -36,13 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "site_inacessivel", status: pagina.status }, { status: 200 });
   }
 
-  const { encontrados, faltandoEssenciais, total } = detectarTags(pagina.html);
+  const seo = analisarSeo(pagina.html, pagina.finalUrl);
 
-  return NextResponse.json({
-    ok: true,
-    url: pagina.finalUrl,
-    encontrados,
-    faltandoEssenciais,
-    total,
-  });
+  return NextResponse.json({ ok: true, url: pagina.finalUrl, ...seo });
 }

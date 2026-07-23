@@ -81,6 +81,7 @@ describe("registry — nenhum botão vazio (PROMPT 17)", () => {
   /** Slugs com interface própria, espelhando o CUSTOM do ToolRunner. */
   const CUSTOM = [
     "velocidade-e-seo", "ficha-google", "verificador-tags-pixels", "previa-google-e-redes", "dados-estruturados",
+    "auditor-seo-tecnico", "auditoria-360", "links-quebrados",
     "simulador-roi", "calculadora-de-midia", "break-even-cac-ltv", "construtor-utm",
     "gerador-google-ads",
     "link-whatsapp", "presets-de-criativos", "estudio-de-cores",
