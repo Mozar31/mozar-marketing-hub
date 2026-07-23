@@ -201,7 +201,7 @@ const PRESETS = [
     { id: "li-capa", label: "Capa da empresa", w: 1128, h: 191 },
   ]},
   { group: "YouTube", items: [
-    { id: "yt-thumb", label: "Thumbnail", w: 1280, h: 720 },
+    { id: "yt-thumb", label: "Miniatura (capa)", w: 1280, h: 720 },
   ]},
   { group: "Google Ads", items: [
     { id: "ga-quad", label: "Quadrado", w: 1200, h: 1200 },

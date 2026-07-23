@@ -23,13 +23,13 @@ export function Footer() {
           <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
             {CATEGORIES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/ferramentas/categoria/${c.slug}/`} className="inline-block py-1.5 text-xs text-ink-300 hover:text-ink-100">
+                <Link href={`/ferramentas/categoria/${c.slug}/`} className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
                   {c.label}
                 </Link>
               </li>
             ))}
             <li>
-              <Link href="/ferramentas/" className="inline-block py-1.5 text-xs font-semibold text-info-400 hover:underline">
+              <Link href="/ferramentas/" className="inline-flex min-h-[44px] items-center py-1.5 text-xs font-semibold text-info-400 hover:underline">
                 Ver todas
               </Link>
             </li>
@@ -42,17 +42,17 @@ export function Footer() {
           </p>
           <ul className="space-y-2">
             <li>
-              <a href="https://www.consiginvest.com/" target="_blank" rel="noopener" className="inline-block py-1.5 text-xs text-ink-300 hover:text-ink-100">
+              <a href="https://www.consiginvest.com/" target="_blank" rel="noopener" className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
                 Site da agência
               </a>
             </li>
             <li>
-              <Link href="/sobre/" className="inline-block py-1.5 text-xs text-ink-300 hover:text-ink-100">
+              <Link href="/sobre/" className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
                 Como funciona o Hub
               </Link>
             </li>
             <li>
-              <Link href="/privacidade/" className="inline-block py-1.5 text-xs text-ink-300 hover:text-ink-100">
+              <Link href="/privacidade/" className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
                 Privacidade e dados
               </Link>
             </li>
