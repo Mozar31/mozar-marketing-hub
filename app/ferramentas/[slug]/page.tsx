@@ -30,6 +30,9 @@ export async function generateMetadata({
       description: tool.description,
       url,
       type: "website",
+      // Sem isto, ao sobrescrever openGraph o Next perde a imagem padrão do
+      // layout e o card de compartilhamento (WhatsApp/Facebook) fica sem imagem.
+      images: [{ url: "/og.png", width: 1200, height: 630, alt: tool.title }],
     },
   };
 }
