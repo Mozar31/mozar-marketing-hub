@@ -37,6 +37,8 @@ const SeoTool = d(() => import("./AuditTools").then((m) => ({ default: m.SeoTool
 const LinksTool = d(() => import("./AuditTools").then((m) => ({ default: m.LinksTool })));
 const Auditoria360 = d(() => import("./AuditTools").then((m) => ({ default: m.Auditoria360 })));
 const LandingTool = d(() => import("./AuditTools").then((m) => ({ default: m.LandingTool })));
+const ComparadorTool = d(() => import("./AuditTools").then((m) => ({ default: m.ComparadorTool })));
+const GeradorSeo = d(() => import("./SeoGenTool").then((m) => ({ default: m.GeradorSeo })));
 
 const ColorStudio = d(() => import("./TextTools").then((m) => ({ default: m.ColorStudio })));
 const JsonTool = d(() => import("./TextTools").then((m) => ({ default: m.JsonTool })));
@@ -53,6 +55,8 @@ const CUSTOM: Record<string, ComponentType> = {
   "verificador-tags-pixels": TagsTool,
   "auditor-seo-tecnico": SeoTool,
   "auditoria-360": Auditoria360,
+  "comparador-de-concorrentes": ComparadorTool,
+  "gerador-titulo-descricao": GeradorSeo,
   "links-quebrados": LinksTool,
   "previa-google-e-redes": SerpPreview,
   "dados-estruturados": SchemaGenerator,

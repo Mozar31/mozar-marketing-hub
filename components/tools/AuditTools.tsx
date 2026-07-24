@@ -453,3 +453,136 @@ export function LandingTool() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comparador de concorrentes (seu site × concorrente, lado a lado)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface LadoComp {
+  ok: boolean;
+  url?: string;
+  erro?: string;
+  seo?: { nota: number; resumo: { ok: number; aviso: number; erro: number } };
+  tags?: { total: number; encontrados: { nome: string; categoria: string }[]; faltandoEssenciais: string[] };
+}
+interface CompRes { ok: boolean; a: LadoComp; b: LadoComp; }
+
+function Vencedor({ quem }: { quem: "a" | "b" | "empate" }) {
+  const txt = quem === "empate" ? "Empate" : quem === "a" ? "Seu site ganha" : "Concorrente ganha";
+  const classe = quem === "empate" ? "text-ink-400" : quem === "a" ? "text-ok-400" : "text-warn-400";
+  return <span className={`text-xs font-bold ${classe}`}>{quem === "a" ? "◀ " : ""}{txt}{quem === "b" ? " ▶" : ""}</span>;
+}
+
+function ColunaComp({ lado, titulo, cor }: { lado: LadoComp; titulo: string; cor: string }) {
+  return (
+    <div className="card-surface p-4">
+      <p className="font-display text-xs font-bold uppercase tracking-wide" style={{ color: cor }}>{titulo}</p>
+      {lado.ok && lado.seo && lado.tags ? (
+        <>
+          <p className="mt-1 mb-3 break-all text-[0.68rem] text-ink-400">{lado.url}</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-4" style={{ borderColor: corNota(lado.seo.nota) }}>
+              <span className="font-display text-lg font-black" style={{ color: corNota(lado.seo.nota) }}>{lado.seo.nota}</span>
+            </div>
+            <div className="text-xs">
+              <p className="font-semibold text-ink-200">Nota de SEO</p>
+              <p className="text-ink-400">✕ {lado.seo.resumo.erro} · ! {lado.seo.resumo.aviso} · ✓ {lado.seo.resumo.ok}</p>
+            </div>
+          </div>
+          <div className="mt-3 border-t border-white/10 pt-3">
+            <p className="text-sm"><strong className="text-ink-100">{lado.tags.total}</strong> <span className="text-ink-400">tag(s)/pixel(s) de marketing</span></p>
+            {lado.tags.encontrados.length > 0 && (
+              <ul className="mt-1.5 flex flex-wrap gap-1">
+                {lado.tags.encontrados.map((t) => (
+                  <li key={t.nome} className="rounded-full border border-white/15 px-2 py-0.5 text-[0.62rem] text-ink-300">{t.nome}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-warn-400">⚠️ {ERROS[lado.erro || ""] || "Não conseguimos analisar este site."}</p>
+      )}
+    </div>
+  );
+}
+
+export function ComparadorTool() {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
+  const [res, setRes] = useState<CompRes | null>(null);
+
+  const comparar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!a.trim() || !b.trim() || loading) return;
+    setErro(""); setRes(null); setLoading(true);
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 40000);
+      const r = await fetch("/api/comparar/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: a.trim(), b: b.trim() }), signal: ctrl.signal });
+      clearTimeout(timer);
+      const data = await r.json();
+      if (data.error) setErro(data.error === "faltam_sites" ? "Preencha os dois sites." : ERROS[data.error] || "Não foi possível comparar agora.");
+      else setRes(data as CompRes);
+    } catch {
+      setErro("Não foi possível comparar agora. Tente de novo em instantes.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Veredito por dimensão (só quando os dois lados deram certo).
+  const ambos = res?.a.ok && res?.b.ok;
+  const vencSeo = ambos ? (res!.a.seo!.nota > res!.b.seo!.nota ? "a" : res!.a.seo!.nota < res!.b.seo!.nota ? "b" : "empate") : null;
+  const vencTags = ambos ? (res!.a.tags!.total > res!.b.tags!.total ? "a" : res!.a.tags!.total < res!.b.tags!.total ? "b" : "empate") : null;
+
+  return (
+    <div>
+      <div className="card-surface mb-5 p-4">
+        <p className="text-sm leading-relaxed text-ink-300">
+          <strong className="text-ink-100">Para que serve:</strong> coloque <strong>o seu site</strong> e o de um
+          <strong> concorrente</strong> e veja lado a lado quem está melhor em <strong>SEO técnico</strong> e quem
+          tem mais <strong>tags e pixels</strong> de marketing instalados. Ótimo para mostrar a um cliente onde ele
+          está perdendo. <strong>Nosso servidor lê apenas as páginas públicas</strong> informadas.
+        </p>
+      </div>
+
+      <form onSubmit={comparar} className="space-y-2">
+        <input type="text" value={a} onChange={(e) => setA(e.target.value)} placeholder="Seu site — ex.: seusite.com.br" className="input-base w-full" aria-label="Seu site" inputMode="url" />
+        <input type="text" value={b} onChange={(e) => setB(e.target.value)} placeholder="Concorrente — ex.: concorrente.com.br" className="input-base w-full" aria-label="Site do concorrente" inputMode="url" />
+        <button type="submit" className="btn-primary w-full sm:w-auto" disabled={loading || !a.trim() || !b.trim()}>
+          {loading ? "Comparando…" : "Comparar sites"}
+        </button>
+      </form>
+
+      {loading && <Carregando texto="Lendo os dois sites e comparando…" />}
+      {erro && <ErroBox erro={erro} />}
+
+      {res && (
+        <div className="mt-6">
+          {ambos && (
+            <div className="card-surface mb-4 flex flex-wrap items-center justify-around gap-3 p-4 text-center">
+              <div><p className="text-[0.68rem] uppercase tracking-wide text-ink-400">SEO técnico</p>{vencSeo && <Vencedor quem={vencSeo} />}</div>
+              <div><p className="text-[0.68rem] uppercase tracking-wide text-ink-400">Tags de marketing</p>{vencTags && <Vencedor quem={vencTags} />}</div>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ColunaComp lado={res.a} titulo="Seu site" cor="#34d399" />
+            <ColunaComp lado={res.b} titulo="Concorrente" cor="#fbbf24" />
+          </div>
+
+          <a href={waLink("Comparei meu site com um concorrente no Hub da Consig Invest e quero ajuda para ficar à frente.")} target="_blank" rel="noopener" className="btn-primary mt-5">
+            💬 Quero passar na frente do concorrente
+          </a>
+        </div>
+      )}
+
+      <p className="mt-6 border-t border-white/10 pt-4 text-[0.72rem] leading-relaxed text-ink-400">
+        Comparamos o que é visível no código público da página inicial de cada site. É um retrato técnico —
+        a estratégia completa (conteúdo, autoridade, anúncios) é analisada com um especialista.
+      </p>
+    </div>
+  );
+}

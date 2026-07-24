@@ -193,6 +193,26 @@ export const TOOLS: Tool[] = [
     badges: ["servidor", "novo"],
     featured: true,
   },
+  {
+    slug: "comparador-de-concorrentes",
+    title: "Comparador de concorrentes",
+    tagline: "Seu site × concorrente, lado a lado",
+    description:
+      "Coloque seu site e o de um concorrente e veja lado a lado quem tem melhor SEO técnico e mais tags e pixels de marketing instalados.",
+    category: "seo",
+    keywords: ["comparar", "concorrente", "concorrencia", "versus", "benchmark", "seo", "tags", "espionar", "analise competitiva", "rival"],
+    badges: ["servidor", "novo"],
+  },
+  {
+    slug: "gerador-titulo-descricao",
+    title: "Gerador de título e descrição",
+    tagline: "Título e descrição prontos pro Google",
+    description:
+      "Preencha o que a página oferece e receba opções de título e descrição no tamanho certo do Google, com contador e prévia do resultado de busca.",
+    category: "seo",
+    keywords: ["titulo", "meta description", "descricao", "tag title", "seo", "gerador", "google", "snippet", "resultado de busca", "otimizar"],
+    badges: ["local-only", "novo"],
+  },
 
   // ═══════════════ Tráfego pago ═══════════════
   {
