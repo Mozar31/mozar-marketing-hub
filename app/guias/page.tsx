@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GUIAS } from "@/lib/guides";
 import { Breadcrumbs } from "@/components/ui";
+import { EmailCapture } from "@/components/EmailCapture";
 
 export const metadata: Metadata = {
   title: "Guias de marketing digital",
@@ -31,6 +32,10 @@ export default function GuiasPage() {
           </li>
         ))}
       </ul>
+
+      <div className="mx-auto mt-10 max-w-xl">
+        <EmailCapture origem="guias" />
+      </div>
     </div>
   );
 }
