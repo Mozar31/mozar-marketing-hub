@@ -146,15 +146,12 @@ export function Header() {
               </div>
             </MegaItem>
 
-            {CATEGORIES.slice(0, 4).map((cat) => (
-              <Link
-                key={cat.slug}
-                href={`/ferramentas/categoria/${cat.slug}/`}
-                className="rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
-              >
-                {cat.short}
-              </Link>
-            ))}
+            <Link
+              href="/ias/"
+              className="rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
+            >
+              IAs
+            </Link>
 
             <Link
               href="/guias/"
@@ -199,6 +196,11 @@ export function Header() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/ias/" className="block rounded-lg px-3 py-2.5 font-display font-semibold text-ink-300" onClick={() => setMobileOpen(false)}>
+                  Diretório de IAs
+                </Link>
+              </li>
               <li>
                 <Link href="/guias/" className="block rounded-lg px-3 py-2.5 font-display font-semibold text-ink-300" onClick={() => setMobileOpen(false)}>
                   Guias
