@@ -157,6 +157,13 @@ export function Header() {
             ))}
 
             <Link
+              href="/guias/"
+              className="rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
+            >
+              Guias
+            </Link>
+
+            <Link
               href="/novidades/"
               className="rounded-t-lg px-4 py-3 font-display text-sm font-semibold text-ink-300 transition hover:text-ink-100"
             >
@@ -192,6 +199,11 @@ export function Header() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/guias/" className="block rounded-lg px-3 py-2.5 font-display font-semibold text-ink-300" onClick={() => setMobileOpen(false)}>
+                  Guias
+                </Link>
+              </li>
               <li>
                 <Link href="/novidades/" className="block rounded-lg px-3 py-2.5 font-display font-semibold text-ink-300" onClick={() => setMobileOpen(false)}>
                   Novidades
