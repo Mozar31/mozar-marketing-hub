@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { TOOLS, getTool, getCategory, toolsByCategory } from "@/lib/registry";
 import { Breadcrumbs, Badge, SourceNote, CtaBlock, ToolCard, IconTile } from "@/components/ui";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { ToolRunner } from "@/components/tools/ToolRunner";
 import { waLink } from "@/lib/config";
 import { SITE_URL } from "@/app/layout";
@@ -94,13 +95,12 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300 md:text-base">
           {tool.description}
         </p>
-        {tool.badges.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {tool.badges.map((b) => (
-              <Badge key={b} badge={b} />
-            ))}
-          </div>
-        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {tool.badges.map((b) => (
+            <Badge key={b} badge={b} />
+          ))}
+          <FavoriteButton slug={tool.slug} className="ml-auto" />
+        </div>
       </header>
 
       <ToolRunner slug={tool.slug} />

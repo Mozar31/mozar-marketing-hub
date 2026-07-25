@@ -47,6 +47,11 @@ export function Footer() {
               </a>
             </li>
             <li>
+              <Link href="/favoritos/" className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
+                ★ Meus favoritos
+              </Link>
+            </li>
+            <li>
               <Link href="/sobre/" className="inline-flex min-h-[44px] items-center py-1.5 text-xs text-ink-300 hover:text-ink-100">
                 Como funciona o Hub
               </Link>
