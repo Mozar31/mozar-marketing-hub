@@ -213,6 +213,17 @@ export const TOOLS: Tool[] = [
     keywords: ["titulo", "meta description", "descricao", "tag title", "seo", "gerador", "google", "snippet", "resultado de busca", "otimizar"],
     badges: ["local-only", "novo"],
   },
+  {
+    slug: "prontidao-para-ia",
+    title: "Prontidão para IA (AEO/GEO)",
+    tagline: "Sua página aparece nas respostas do ChatGPT?",
+    description:
+      "Veja se uma página está pronta para ser citada pela IA (ChatGPT, Perplexity, Google com IA): conteúdo, perguntas, dados estruturados, autoria e llms.txt.",
+    category: "seo",
+    keywords: ["aeo", "geo", "ia", "chatgpt", "perplexity", "citação", "ai overview", "generative engine optimization", "llms.txt", "seo para ia", "responder engine"],
+    badges: ["servidor", "novo"],
+    featured: true,
+  },
 
   // ═══════════════ Tráfego pago ═══════════════
   {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { detectarTags } from "../server/tags";
 import { analisarSeo } from "../server/seo";
 import { analisarLanding } from "../server/landing";
+import { analisarAeo } from "../server/aeo";
 import { extrairLinks } from "../server/links";
 import { alvoSeguro, resolverAlvo } from "../server/http";
 
@@ -113,6 +114,38 @@ describe("analisarLanding", () => {
     expect(erros).toContain("cta");
     expect(erros).toContain("mobile");
     expect(erros).toContain("https");
+  });
+});
+
+describe("analisarAeo", () => {
+  const corpo = ("palavra ".repeat(650));
+  const boa = `<!doctype html><html><head>
+    <script type="application/ld+json">{"@type":"FAQPage"}</script>
+    <meta name="author" content="Consig Invest">
+    <meta property="article:published_time" content="2026-07-24">
+    </head><body>
+    <h1>Guia de tráfego pago</h1>
+    <h2>O que é ROAS?</h2><p>${corpo}</p>
+    <h2>Como calcular o CAC?</h2><p>resposta</p>
+    </body></html>`;
+
+  it("dá nota alta para página pronta para IA", () => {
+    const r = analisarAeo(boa, "https://exemplo.com/", true);
+    expect(r.resumo.erro).toBe(0);
+    expect(r.nota).toBeGreaterThanOrEqual(85);
+  });
+
+  it("detecta FAQ, schema e llms.txt", () => {
+    const r = analisarAeo(boa, "https://exemplo.com/", true);
+    expect(r.pontos.find((p) => p.chave === "faq")?.nivel).toBe("ok");
+    expect(r.pontos.find((p) => p.chave === "schema")?.nivel).toBe("ok");
+    expect(r.pontos.find((p) => p.chave === "llms")?.nivel).toBe("ok");
+  });
+
+  it("acusa pouco texto e HTTP", () => {
+    const r = analisarAeo(`<html><body><p>oi</p></body></html>`, "http://exemplo.com/", false);
+    expect(r.pontos.find((p) => p.chave === "texto")?.nivel).toBe("erro");
+    expect(r.pontos.find((p) => p.chave === "https")?.nivel).toBe("erro");
   });
 });
 

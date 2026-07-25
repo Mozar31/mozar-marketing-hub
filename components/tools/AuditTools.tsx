@@ -586,3 +586,78 @@ export function ComparadorTool() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verificador de prontidão para IA (AEO/GEO)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function AeoTool() {
+  const { url, setUrl, loading, erro, res, analisar } = useAnalise<SeoRes>("/api/aeo/", 25000);
+  const pontos = res ? [...res.pontos].sort((a, b) => NIVEL_UI[a.nivel].ordem - NIVEL_UI[b.nivel].ordem) : [];
+
+  return (
+    <div>
+      <div className="card-surface mb-5 p-4">
+        <p className="text-sm leading-relaxed text-ink-300">
+          <strong className="text-ink-100">Para que serve:</strong> cada vez mais gente pergunta pro
+          <strong> ChatGPT, Perplexity e ao Google com IA</strong> em vez de rolar os resultados. Cole o
+          endereço de uma página e veja se ela está <strong>pronta para ser citada pela IA</strong> — conteúdo,
+          formato de perguntas, dados estruturados, autoria, data e o novo <strong>llms.txt</strong>.
+          <strong> Nosso servidor lê apenas a página pública</strong> que você informar.
+        </p>
+      </div>
+
+      <Formulario url={url} setUrl={setUrl} loading={loading} analisar={analisar} rotulo="Verificar prontidão para IA" />
+      {loading && <Carregando texto="Lendo a página e avaliando a prontidão para IA…" />}
+      {erro && <ErroBox erro={erro} />}
+
+      {res && (
+        <div className="mt-6">
+          <div className="card-surface flex items-center gap-4 p-5">
+            <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-4" style={{ borderColor: corNota(res.nota) }}>
+              <span className="font-display text-2xl font-black" style={{ color: corNota(res.nota) }}>{res.nota}</span>
+              <span className="text-[0.6rem] text-ink-400">de 100</span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-sm font-bold">Prontidão para IA (AEO/GEO)</p>
+              <p className="mt-0.5 break-all text-xs text-ink-400">{res.url}</p>
+              <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                <span className="text-bad-400">✕ {res.resumo.erro}</span>
+                <span className="text-warn-400">! {res.resumo.aviso} a melhorar</span>
+                <span className="text-ok-400">✓ {res.resumo.ok} ok</span>
+              </p>
+            </div>
+          </div>
+
+          <ul className="mt-4 space-y-2">
+            {pontos.map((p) => (
+              <li key={p.chave} className={`rounded-lg border px-4 py-3 ${NIVEL_UI[p.nivel].classe}`}>
+                <div className="flex items-start gap-2.5">
+                  <span aria-hidden="true" className="mt-0.5 font-bold">{NIVEL_UI[p.nivel].icone}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink-100">
+                      {p.titulo}
+                      {p.valor && <span className="ml-2 font-normal text-ink-400">— {p.valor}</span>}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-300">{p.detalhe}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {(res.resumo.erro > 0 || res.resumo.aviso > 0) && (
+            <a href={waLink(`Verifiquei a prontidão da página ${res.url} para IA no Hub da Consig Invest (nota ${res.nota}/100) e quero ajuda para aparecer nas respostas do ChatGPT/Google.`)} target="_blank" rel="noopener" className="btn-primary mt-5">
+              💬 Quero minha marca aparecendo nas respostas de IA
+            </a>
+          )}
+        </div>
+      )}
+
+      <p className="mt-6 border-t border-white/10 pt-4 text-[0.72rem] leading-relaxed text-ink-400">
+        Avaliamos sinais on-page que ajudam a IA a entender e citar a página. Não é garantia de citação — a IA
+        também considera autoridade da marca e menções em outros sites, trabalhados numa estratégia de conteúdo/AEO.
+      </p>
+    </div>
+  );
+}
