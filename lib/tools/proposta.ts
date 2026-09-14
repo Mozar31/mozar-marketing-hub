@@ -1,9 +1,10 @@
 /**
  * Gerador de proposta comercial — lógica pura (§23).
  *
- * Tudo roda no navegador: nenhum dado do cliente, valor ou logo sai do
- * dispositivo. Nada de API, nada de IA — a proposta é determinística, então o
- * mesmo preenchimento gera sempre o mesmo documento.
+ * O documento é montado no navegador e por padrão é determinístico: o mesmo
+ * preenchimento gera sempre o mesmo texto. A única saída para servidor é o
+ * botão "Reescrever com IA", que manda apenas os parâmetros da proposta para
+ * /api/proposta-ia (a chave do modelo vive no servidor, nunca aqui).
  *
  * Regra de negócio que não pode ser quebrada (ver __tests__/proposta.test.ts):
  * a VERBA DE MÍDIA nunca entra em nenhum subtotal de honorários. Ela é paga
@@ -57,6 +58,19 @@ export interface PropostaEstado {
   agenciaLogo: string;
   cor: string;
 
+  /* Páginas institucionais (padrão do template da agência) */
+  incluirInstitucional: boolean;
+  sobreAgencia: string;
+  perfilEmpresa: string;
+  missao: string;
+  valores: string;
+
+  /**
+   * Texto da proposta reescrito pela IA a partir dos parâmetros. Quando vazio,
+   * vale o texto determinístico de `textoProposta`.
+   */
+  textoIA: string;
+
   /* Fechamento */
   validadeDias: number;
   observacoes: string;
@@ -95,6 +109,18 @@ export const ESTADO_INICIAL: PropostaEstado = {
   agenciaEmail: "contato@consiginvest.com",
   agenciaLogo: "/logo.png",
   cor: COR_PADRAO,
+
+  incluirInstitucional: true,
+  sobreAgencia:
+    "A Consig Invest é uma agência de marketing digital inovadora e dinâmica, focada em impulsionar o crescimento de negócios e alcançar resultados excepcionais para nossos clientes. Fundada em 2019, nossa equipe altamente qualificada e experiente trabalha incansavelmente para fornecer soluções personalizadas e eficazes, que atendem às necessidades específicas de cada cliente.",
+  perfilEmpresa:
+    "A Consig Invest prioriza o atendimento ao cliente e a comunicação aberta, estabelecendo relacionamentos duradouros e de confiança. Nossos clientes são informados e envolvidos em cada etapa do processo, garantindo que suas expectativas sejam atendidas e superadas.",
+  missao:
+    "Nossa missão na Consig Invest é impulsionar o crescimento e a visibilidade dos negócios de nossos clientes no ambiente digital, fornecendo soluções inovadoras e personalizadas de marketing.",
+  valores:
+    "Na Consig Invest, enfatizamos a comunicação aberta e o trabalho em equipe, atuando em parceria com nossos clientes para criar estratégias de marketing eficazes e adaptadas às suas necessidades. Nosso foco na criatividade e na busca pela excelência nos permite alcançar resultados expressivos em todos os projetos. A ética e a dedicação ao desenvolvimento profissional são essenciais para estabelecer relações de confiança e garantir que nossa equipe esteja sempre à frente das inovações do setor.",
+
+  textoIA: "",
 
   validadeDias: 15,
   observacoes: "",
@@ -258,9 +284,9 @@ export const CATALOGO: ItemCatalogo[] = [
     valor: "1.590,00",
     entregas: [
       "Até 6 páginas",
-      "Domínio .com.br (1 ano)",
       "Hospedagem (1 ano)",
       "E-mail profissional (1 ano)",
+      "Publicação no domínio do cliente (o registro do .com.br é contratado e pago por ele)",
       "Layout profissional responsivo (celular e PC)",
       "Apresentação institucional e criação de conteúdo de blog para SEO",
       "Botão WhatsApp e formulários integrados",
@@ -275,9 +301,9 @@ export const CATALOGO: ItemCatalogo[] = [
     valor: "899,00",
     entregas: [
       "1 página",
-      "Domínio .com.br (1 ano)",
       "Hospedagem (1 ano)",
       "E-mail profissional (1 ano)",
+      "Publicação no domínio do cliente (o registro do .com.br é contratado e pago por ele)",
       "Layout profissional responsivo (celular e PC)",
       "Página focada em conversão (WhatsApp ou formulário)",
       "Integração com botão WhatsApp",
@@ -508,17 +534,39 @@ export function calcularInvestimento(e: PropostaEstado): Investimento {
 
 /* ── Textos determinísticos ──────────────────────────────── */
 
-const LEITURA_OBJETIVO: Record<Objetivo, string> = {
+/** "a, b e c" */
+function listar(itens: string[], conector = "e"): string {
+  if (itens.length === 0) return "";
+  const ultimo = itens[itens.length - 1] ?? "";
+  if (itens.length === 1) return ultimo;
+  return `${itens.slice(0, -1).join(", ")} ${conector} ${ultimo}`;
+}
+
+/**
+ * Voz do documento: quem fala é a AGÊNCIA ("nossa equipe", "vamos"), e o
+ * cliente aparece sempre em terceira pessoa ("a Empresa X"). O que o cliente
+ * disse entra entre aspas, como citação — nunca diluído no meio do texto, que
+ * era o que misturava primeira e terceira pessoa.
+ */
+const META_OBJETIVO: Record<Objetivo, string> = {
+  leads: "gerar demanda qualificada",
+  "vender-online": "aumentar as vendas na loja online",
+  autoridade: "consolidar a autoridade da marca junto a quem decide",
+  "reduzir-cpl": "reduzir o custo por contato qualificado",
+  reestruturar: "reorganizar a operação de marketing digital que já existe",
+};
+
+const ESTRATEGIA_OBJETIVO: Record<Objetivo, string> = {
   leads:
-    "O que está em jogo aqui é volume de leads qualificados — contato de quem tem intenção real de contratar, não número de visitas. Por isso o plano abaixo é medido por custo por lead e por conversão em cliente.",
+    "A estratégia será baseada em segmentação direcionada, para que os anúncios apareçam para quem realmente procura o serviço, evitando desperdício de verba com cliques irrelevantes. O acompanhamento é feito sobre os termos de pesquisa e o perfil de quem chega, com negativação contínua do que atrai público fora do alvo.",
   "vender-online":
-    "O que está em jogo aqui é venda concluída, não visita à loja. Por isso o plano abaixo separa quem já procura pelo produto de quem ainda está descobrindo, e mede receita e custo por venda.",
+    "A estratégia separa quem já procura o produto de quem ainda está descobrindo a marca, com campanhas e criativos próprios para cada momento. O acompanhamento é feito sobre receita, custo por venda e retorno sobre o investimento em mídia, não sobre volume de visitas.",
   autoridade:
-    "O que está em jogo aqui é ser encontrado e reconhecido por quem decide — para que o contato chegue já sabendo quem você é. Mesmo assim, a medição continua em contato gerado e conversão em cliente, não em curtidas.",
+    "A estratégia combina presença nas buscas de quem decide e conteúdo que sustenta a decisão, para que o contato chegue já sabendo com quem está falando. Mesmo assim, a medição continua em contato gerado e conversão em cliente.",
   "reduzir-cpl":
-    "O que está em jogo aqui é pagar menos pelo mesmo contato qualificado. Por isso o trabalho começa pela leitura do que já roda: onde o dinheiro está indo, quais termos trazem contato de alta intenção e quais só trazem volume.",
+    "O trabalho começa pela leitura do que já roda: para onde o dinheiro está indo, quais termos trazem contato de alta intenção e quais só trazem volume. A partir daí vem a limpeza das campanhas, a negativação do que atrai público errado e o ajuste de lances e orçamento.",
   reestruturar:
-    "O que está em jogo aqui é arrumar o que já existe antes de colocar mais dinheiro. Por isso o trabalho começa por estrutura, rastreamento e limpeza do que gasta sem gerar contato qualificado.",
+    "O trabalho começa por estrutura, rastreamento e limpeza do que gasta sem gerar contato qualificado. Só depois de a medição estar confiável é que faz sentido aumentar verba — antes disso, aumentar investimento é aumentar o desperdício.",
 };
 
 /** Conselhos de classe: comunicação com restrição própria (§ conteúdo). */
@@ -536,27 +584,59 @@ export function avisoConselho(segmento: string): string | null {
   return null;
 }
 
-/** Parágrafos do diagnóstico. Sempre abrem pelo problema do cliente. */
-export function textoDiagnostico(e: PropostaEstado): string[] {
-  const empresa = e.clienteEmpresa.trim() || "A empresa";
+/** Parâmetros que a IA recebe para reescrever a proposta. */
+export function parametrosIA(e: PropostaEstado) {
+  return {
+    agencia: e.agenciaNome.trim() || "a agência",
+    cliente: e.clienteEmpresa.trim(),
+    segmento: e.clienteSegmento.trim(),
+    objetivo: OBJETIVOS.find((o) => o.key === e.objetivo)?.label ?? "",
+    fala: e.problema.trim(),
+    servicos: e.servicos.map((s) => s.nome).filter(Boolean),
+    meses: Math.max(1, Math.round(e.meses || 1)),
+  };
+}
+
+/**
+ * Parágrafos da proposta, na voz da agência.
+ * Se a IA já reescreveu (`textoIA`), é ela que manda.
+ */
+export function textoProposta(e: PropostaEstado): string[] {
+  if (e.textoIA.trim()) {
+    return e.textoIA
+      .split(/\n{1,}/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  const empresa = e.clienteEmpresa.trim() || "a empresa";
+  const servicos = e.servicos.map((s) => s.nome).filter(Boolean);
   const p: string[] = [];
 
+  p.push(
+    `O objetivo desta proposta é ${META_OBJETIVO[e.objetivo]} para a ${empresa}` +
+      (servicos.length
+        ? `, com ${listar(servicos)}${e.clienteSegmento.trim() ? `, dentro da realidade de ${e.clienteSegmento.trim().toLowerCase()}` : ""}.`
+        : ".")
+  );
+
   if (e.problema.trim()) {
-    p.push(`O ponto de partida desta proposta é o que ${empresa} nos relatou: ${e.problema.trim()}`);
-  } else {
     p.push(
-      `O ponto de partida desta proposta é o problema que ${empresa} precisa resolver, e não a lista de serviços que temos para vender.`
+      `O ponto de partida é o que a ${empresa} trouxe na conversa: “${e.problema.trim().replace(/^["“]|["”]$/g, "")}”. É a partir disso que a nossa equipe montou o escopo apresentado a seguir.`
     );
   }
 
-  p.push(LEITURA_OBJETIVO[e.objetivo]);
+  p.push(ESTRATEGIA_OBJETIVO[e.objetivo]);
 
   p.push(
-    "Sobre ritmo: tráfego pago costuma dar sinal em dias; SEO, em semanas a meses. Nenhum dos dois é previsão de resultado — o que está no contrato é método, medição e ajuste do que estiver caro ou fora do perfil."
+    `Todo o acompanhamento é feito com os números à vista: tráfego pago costuma dar sinal em dias; SEO, em semanas a meses. Nenhum dos dois é previsão de resultado — o que está no contrato é método, medição e ajuste do que estiver caro ou fora do perfil, ao longo dos ${Math.max(1, Math.round(e.meses || 1))} meses de trabalho.`
   );
 
   return p;
 }
+
+/** Nome antigo, mantido para não quebrar import de fora. */
+export const textoDiagnostico = textoProposta;
 
 export const AVISO_VERBA =
   "O valor investido nos anúncios é pago diretamente a Google e Meta, separado da gestão, com pagamento feito na própria plataforma via Pix ou cartão de crédito, com total controle do cliente sobre a verba de mídia.";
@@ -576,8 +656,8 @@ export function textoWhatsApp(e: PropostaEstado): string {
   L.push(`Válida por ${e.validadeDias} dias (até ${dataValidade(e)})`);
   L.push("");
 
-  L.push("📌 *O PONTO DE PARTIDA*");
-  textoDiagnostico(e).forEach((par) => L.push(par));
+  L.push("📌 *A PROPOSTA*");
+  textoProposta(e).forEach((par) => L.push(par));
   L.push("");
 
   if (e.servicos.length) {
@@ -682,6 +762,30 @@ export function paginarServicos(servicos: Servico[], linhasPorPagina = 30): Serv
   return paginas;
 }
 
+/**
+ * Quebra os parágrafos da proposta em páginas. O texto da IA tem tamanho
+ * variável — sem isso, um texto longo passaria por cima da arte das ondas.
+ */
+export function paginarParagrafos(paragrafos: string[], linhasPorPagina = 30): string[][] {
+  const CHARS_POR_LINHA = 92;
+  const paginas: string[][] = [];
+  let atual: string[] = [];
+  let linhas = 0;
+
+  for (const par of paragrafos) {
+    const custo = Math.ceil(par.length / CHARS_POR_LINHA) + 1;
+    if (atual.length && linhas + custo > linhasPorPagina) {
+      paginas.push(atual);
+      atual = [];
+      linhas = 0;
+    }
+    atual.push(par);
+    linhas += custo;
+  }
+  if (atual.length) paginas.push(atual);
+  return paginas;
+}
+
 /* ── Link compartilhável (?p=base64) ─────────────────────── */
 
 /** Base64 seguro para URL e para acento (a logo fica de fora: estoura o limite). */
@@ -756,6 +860,12 @@ export function normalizar(bruto: Partial<PropostaEstado>): PropostaEstado {
       ? texto(bruto.agenciaLogo)
       : ESTADO_INICIAL.agenciaLogo,
     cor: /^#[0-9a-f]{6}$/i.test(texto(bruto.cor)) ? texto(bruto.cor) : COR_PADRAO,
+    incluirInstitucional: bruto.incluirInstitucional !== false,
+    sobreAgencia: texto(bruto.sobreAgencia, ESTADO_INICIAL.sobreAgencia),
+    perfilEmpresa: texto(bruto.perfilEmpresa, ESTADO_INICIAL.perfilEmpresa),
+    missao: texto(bruto.missao, ESTADO_INICIAL.missao),
+    valores: texto(bruto.valores, ESTADO_INICIAL.valores),
+    textoIA: texto(bruto.textoIA).slice(0, 4000),
     validadeDias: Number.isFinite(Number(bruto.validadeDias))
       ? Math.max(1, Math.round(Number(bruto.validadeDias)))
       : 15,

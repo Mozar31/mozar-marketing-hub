@@ -10,7 +10,8 @@ import {
   paginarServicos,
   parseBRL,
   serializar,
-  textoDiagnostico,
+  paginarParagrafos,
+  textoProposta,
   textoWhatsApp,
   type PropostaEstado,
   type Servico,
@@ -187,18 +188,40 @@ describe("textos automáticos — regras de conteúdo", () => {
 
   const todosOsTextos = (e: PropostaEstado) =>
     [
-      ...textoDiagnostico(e),
+      ...textoProposta(e),
       textoWhatsApp(e),
       ...CATALOGO.flatMap((c) => [c.nome, c.descricao, ...c.entregas]),
     ]
       .join(" ")
       .toLowerCase();
 
-  it("abre pelo problema do cliente, não pela lista de serviços", () => {
-    const primeiro = textoDiagnostico(cheio)[0] ?? "";
-    expect(primeiro).toContain("Clínica Exemplo");
-    expect(primeiro).toContain("quase ninguém fecha");
-    expect(primeiro.toLowerCase()).not.toContain("google ads");
+  it("fala na voz da agência e cita o cliente em terceira pessoa", () => {
+    const todos = textoProposta(cheio).join(" ");
+    expect(todos).toContain("Clínica Exemplo");
+    // a fala do cliente entra entre aspas, para não misturar primeira e terceira pessoa
+    expect(todos).toContain("“as campanhas trazem contato, mas quase ninguém fecha.”");
+    expect(todos).toContain("nossa equipe");
+    expect(todos.toLowerCase()).not.toContain("nos relatou: eu");
+  });
+
+  it("a fala do cliente em primeira pessoa fica dentro das aspas, nunca solta no texto", () => {
+    const comEu = estado({
+      clienteEmpresa: "Alquimistas",
+      problema: "eu quero iniciar com duas coisas, fazer o Google meu negócio e o site.",
+    });
+    const todos = textoProposta(comEu).join(" ");
+    const posAspas = todos.indexOf("“eu quero iniciar");
+    expect(posAspas).toBeGreaterThan(-1);
+    // fora das aspas não pode sobrar "eu quero"
+    expect(todos.replace(/“[^”]*”/g, "")).not.toContain("eu quero");
+  });
+
+  it("o texto da IA, quando existe, substitui o texto padrão", () => {
+    const comIA = estado({
+      clienteEmpresa: "X",
+      textoIA: ["Primeiro parágrafo.", "Segundo parágrafo."].join("\n\n"),
+    });
+    expect(textoProposta(comIA)).toEqual(["Primeiro parágrafo.", "Segundo parágrafo."]);
   });
 
   it("não promete resultado nem cita prazo específico de resultado", () => {
@@ -230,9 +253,17 @@ describe("textos automáticos — regras de conteúdo", () => {
   });
 
   it("usa a única formulação de ritmo permitida", () => {
-    expect(textoDiagnostico(cheio).join(" ")).toContain(
+    expect(textoProposta(cheio).join(" ")).toContain(
       "tráfego pago costuma dar sinal em dias; SEO, em semanas a meses"
     );
+  });
+
+  it("site e landing page não cobram domínio do cliente", () => {
+    for (const nome of ["Site Completo", "Landing Page"]) {
+      const item = CATALOGO.find((c) => c.nome === nome)!;
+      expect(item.entregas.join(" "), nome).not.toContain("Domínio .com.br (1 ano)");
+      expect(item.entregas.join(" "), nome).toContain("pago por ele");
+    }
   });
 
   it("deixa a separação entre fee e verba explícita em pelo menos dois pontos", () => {
@@ -250,6 +281,19 @@ describe("textos automáticos — regras de conteúdo", () => {
     expect(avisoConselho("Odontologia e clínicas")).toContain("CFO");
     expect(avisoConselho("Saúde mental")).toMatch(/CFM|CFP/);
     expect(avisoConselho("E-commerce")).toBeNull();
+  });
+});
+
+describe("paginação do texto da proposta", () => {
+  it("não perde parágrafo e quebra texto longo em mais de uma página", () => {
+    const pars = Array.from({ length: 12 }, (_, i) => "Parágrafo ".repeat(20) + i);
+    const paginas = paginarParagrafos(pars);
+    expect(paginas.flat()).toEqual(pars);
+    expect(paginas.length).toBeGreaterThan(1);
+  });
+
+  it("texto curto cabe em uma página só", () => {
+    expect(paginarParagrafos(["Um.", "Dois."])).toHaveLength(1);
   });
 });
 

@@ -15,6 +15,7 @@ import {
   excluirRascunho,
   fmtBRL,
   lerRascunhos,
+  parametrosIA,
   salvarRascunho,
   serializar,
   textoWhatsApp,
@@ -50,6 +51,7 @@ export function PropostaTool() {
   const [rascunhoId, setRascunhoId] = useState<string>(novoId);
   const [montado, setMontado] = useState(false);
   const [linkGerado, setLinkGerado] = useState("");
+  const [iaCarregando, setIaCarregando] = useState(false);
 
   const uid = useId();
 
@@ -145,6 +147,35 @@ export function PropostaTool() {
     setErros(problemas);
     if (problemas.length) return;
     window.print();
+  };
+
+  /** Manda só os parâmetros (sem valores) para o servidor reescrever o texto. */
+  const reescreverComIA = async () => {
+    if (!e.clienteEmpresa.trim()) {
+      setErros(["Informe o nome da empresa cliente antes de reescrever."]);
+      return;
+    }
+    setErros([]);
+    setIaCarregando(true);
+    setAviso("Reescrevendo a proposta com IA…");
+    try {
+      const res = await fetch("/api/proposta-ia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parametrosIA(e)),
+      });
+      const data = await res.json();
+      if (data.texto) {
+        set("textoIA", String(data.texto));
+        setAviso("Texto reescrito. Revise antes de mandar — a IA erra e quem assina é você.");
+      } else {
+        setAviso(data.mensagem || "Não foi possível reescrever agora. O texto padrão segue valendo.");
+      }
+    } catch {
+      setAviso("Não foi possível falar com o servidor. O texto padrão segue valendo.");
+    } finally {
+      setIaCarregando(false);
+    }
   };
 
   const salvar = () => {
@@ -284,6 +315,39 @@ export function PropostaTool() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={reescreverComIA}
+                  disabled={iaCarregando}
+                  className="btn-primary text-sm disabled:opacity-60"
+                >
+                  {iaCarregando ? "Reescrevendo…" : "✨ Reescrever com IA"}
+                </button>
+                {e.textoIA && (
+                  <button type="button" onClick={() => set("textoIA", "")} className="btn-ghost text-xs">
+                    Voltar ao texto padrão
+                  </button>
+                )}
+              </div>
+              <p className="text-[0.7rem] leading-relaxed text-ink-400">
+                A IA recebe só o que está acima (cliente, segmento, objetivo, o que ele falou e os
+                serviços escolhidos) e devolve a abertura da proposta escrita na voz da agência.
+                Nenhum valor é enviado.
+              </p>
+              {e.textoIA && (
+                <div className="mt-3">
+                  <Area
+                    id={`${uid}-ia`}
+                    label="Texto da proposta (pode editar à mão)"
+                    value={e.textoIA}
+                    onChange={(v) => set("textoIA", v)}
+                    rows={8}
+                  />
+                </div>
+              )}
             </div>
           </Bloco>
 
@@ -501,6 +565,33 @@ export function PropostaTool() {
                   </button>
                 </span>
               </label>
+              <div className="sm:col-span-2 border-t border-white/10 pt-3">
+                <label className="flex items-center gap-2 text-sm text-ink-200">
+                  <input
+                    type="checkbox"
+                    checked={e.incluirInstitucional}
+                    onChange={(ev) => set("incluirInstitucional", ev.target.checked)}
+                    className="h-4 w-4 accent-[var(--color-action-500)]"
+                  />
+                  Incluir as páginas &ldquo;Sobre a agência&rdquo; e &ldquo;Missão &amp; Valores&rdquo;
+                </label>
+              </div>
+              {e.incluirInstitucional && (
+                <>
+                  <div className="sm:col-span-2">
+                    <Area id={`${uid}-sobre`} label="Sobre a agência" value={e.sobreAgencia} onChange={(v) => set("sobreAgencia", v)} rows={4} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Area id={`${uid}-perfil`} label="Perfil da empresa" value={e.perfilEmpresa} onChange={(v) => set("perfilEmpresa", v)} rows={3} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Area id={`${uid}-missao`} label="Missão" value={e.missao} onChange={(v) => set("missao", v)} rows={3} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Area id={`${uid}-valores`} label="Valores" value={e.valores} onChange={(v) => set("valores", v)} rows={4} />
+                  </div>
+                </>
+              )}
               <div className="sm:col-span-2">
                 <Area
                   id={`${uid}-obs`}

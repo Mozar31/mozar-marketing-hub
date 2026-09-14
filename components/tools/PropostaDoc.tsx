@@ -10,9 +10,10 @@ import {
   dataValidade,
   fmtBRL,
   mesAno,
+  paginarParagrafos,
   paginarServicos,
   parseBRL,
-  textoDiagnostico,
+  textoProposta,
   type PropostaEstado,
 } from "@/lib/tools/proposta";
 
@@ -95,9 +96,9 @@ function Pagina({
   );
 }
 
-function Marca({ e, centro = false }: { e: PropostaEstado; centro?: boolean }) {
+function Marca({ e, centro = false, invertida = false }: { e: PropostaEstado; centro?: boolean; invertida?: boolean }) {
   return (
-    <div className={`pp-marca${centro ? " pp-marca-centro" : ""}`}>
+    <div className={`pp-marca${centro ? " pp-marca-centro" : ""}${invertida ? " pp-marca-invertida" : ""}`}>
       {e.agenciaLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={e.agenciaLogo} alt={`Logo de ${e.agenciaNome || "agência"}`} className="pp-logo" />
@@ -127,6 +128,7 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
   const aviso = avisoConselho(e.clienteSegmento);
   const empresa = e.clienteEmpresa.trim();
   const paginasEscopo = paginarServicos(e.servicos);
+  const paginasTexto = paginarParagrafos(textoProposta(e));
   const mensais = e.servicos.filter((s) => s.tipo === "mensal");
   const unicos = e.servicos.filter((s) => s.tipo === "unico");
 
@@ -159,16 +161,44 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
         </div>
       </Pagina>
 
-      {/* ── Diagnóstico ── */}
-      <Pagina e={e}>
-        <h2 className="pp-h1">O ponto de partida</h2>
-        {textoDiagnostico(e).map((p, i) => (
-          <p key={i} className="pp-para">
-            {p}
-          </p>
-        ))}
+      {/* ── Sobre a agência (página fixa do padrão) ── */}
+      {e.incluirInstitucional && (
+        <>
+          <Pagina e={e}>
+            <div className="pp-marca-direita">
+              <Marca e={e} invertida />
+            </div>
+            <h2 className="pp-h1">Sobre a agência</h2>
+            <p className="pp-para">{e.sobreAgencia}</p>
+            <h3 className="pp-h2 pp-h2-caixa">PERFIL DA EMPRESA</h3>
+            <p className="pp-para">{e.perfilEmpresa}</p>
+          </Pagina>
 
-        <h3 className="pp-h2">🛠️ Como o trabalho começa</h3>
+          <Pagina e={e}>
+            <h2 className="pp-h1">Missão &amp; Valores</h2>
+            <h3 className="pp-h3-sub">Missão</h3>
+            <p className="pp-para">{e.missao}</p>
+            <h3 className="pp-h3-sub">Valores</h3>
+            <p className="pp-para">{e.valores}</p>
+          </Pagina>
+        </>
+      )}
+
+      {/* ── A proposta, na voz da agência ── */}
+      {paginasTexto.map((pagina, i) => (
+        <Pagina e={e} key={`proposta-${i}`}>
+          <h2 className="pp-h1">A proposta{i > 0 ? " (continuação)" : ""}</h2>
+          {pagina.map((par, k) => (
+            <p key={k} className="pp-para">
+              {par}
+            </p>
+          ))}
+        </Pagina>
+      ))}
+
+      {/* ── Método ── */}
+      <Pagina e={e}>
+        <h2 className="pp-h1">Como o trabalho começa</h2>
         <ol className="pp-metodo">
           {METODO.map((m) => (
             <li key={m.n}>
@@ -180,7 +210,6 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
             </li>
           ))}
         </ol>
-
         {aviso && <p className="pp-nota">⚖️ {aviso}</p>}
       </Pagina>
 
@@ -357,7 +386,9 @@ export const PROPOSTA_CSS = `
   position: absolute;
   left: 0; right: 0; bottom: 0;
   z-index: 2;
-  height: 13mm;
+  /* Curto de propósito: a onda navy tem no mínimo ~10mm, e um rodapé mais alto
+     jogaria o texto por cima da faixa azul (era o "sobreposto" do PDF). */
+  height: 9mm;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -417,6 +448,15 @@ export const PROPOSTA_CSS = `
 .pp-lista { list-style: none; margin: 0 0 4mm; padding: 0; }
 .pp-check { display: flex; gap: 7px; font-size: 10pt; line-height: 1.5; margin-bottom: 1.6mm; }
 .pp-check-ic { flex: 0 0 13px; width: 13px; height: 13px; margin-top: 2.5px; display: block; }
+
+.pp-marca-direita { display: flex; justify-content: flex-end; margin-bottom: 10mm; }
+.pp-marca-invertida { flex-direction: row-reverse; text-align: right; }
+.pp-h2-caixa { margin-top: 7mm; text-transform: uppercase; letter-spacing: 0.03em; font-size: 12pt; }
+.pp-h3-sub {
+  margin: 6mm 0 2mm; font-weight: 700; font-size: 13pt; color: var(--pp-titulo);
+  display: inline-block; border-bottom: 2px solid var(--pp-azul); padding-bottom: 1mm;
+}
+.pp-h3-sub + .pp-para { margin-top: 2mm; }
 
 .pp-servico { margin-bottom: 6mm; }
 .pp-servico-topo {
