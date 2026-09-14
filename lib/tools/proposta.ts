@@ -1,7 +1,7 @@
 /**
  * Gerador de proposta comercial — lógica pura (§23).
  *
- * Tudo aqui roda no navegador: nenhum dado do cliente, valor ou logo sai do
+ * Tudo roda no navegador: nenhum dado do cliente, valor ou logo sai do
  * dispositivo. Nada de API, nada de IA — a proposta é determinística, então o
  * mesmo preenchimento gera sempre o mesmo documento.
  *
@@ -24,13 +24,6 @@ export interface Servico {
   entregas: string[];
 }
 
-export interface CaseProva {
-  id: string;
-  nicho: string;
-  resultado: string;
-  contexto: string;
-}
-
 export type Objetivo =
   | "leads"
   | "vender-online"
@@ -38,73 +31,71 @@ export type Objetivo =
   | "reduzir-cpl"
   | "reestruturar";
 
-export type Situacao =
-  | "anuncia"
-  | "site"
-  | "google"
-  | "rastreamento"
-  | "crm";
-
 export interface PropostaEstado {
-  /* Etapa 1 — quem recebe */
+  /* Cliente */
   clienteEmpresa: string;
   clienteSegmento: string;
-  clienteCidade: string;
   clienteContato: string;
-  clienteCargo: string;
 
-  /* Etapa 2 — quem envia */
-  agenciaNome: string;
-  agenciaSite: string;
-  agenciaWhatsapp: string;
-  agenciaEmail: string;
-  /** data URL da logo. Fica só em memória e no localStorage — nunca vai para a URL. */
-  agenciaLogo: string;
-  cor: string;
-
-  /* Etapa 3 — diagnóstico */
+  /* Diagnóstico */
   problema: string;
   objetivo: Objetivo;
-  situacao: Situacao[];
 
-  /* Etapa 4 — escopo e investimento */
+  /* Escopo e investimento */
   servicos: Servico[];
   verbaMidia: string;
   meses: number;
   pagamento: string;
 
-  /* Etapa 5 — provas e fechamento */
-  cases: CaseProva[];
+  /* Quem envia (vem preenchido; editável no bloco "Meus dados") */
+  agenciaNome: string;
+  agenciaLinha2: string;
+  agenciaSite: string;
+  agenciaWhatsapp: string;
+  agenciaEmail: string;
+  /** URL ou data URL da logo. Só em memória e no localStorage — nunca vai para a URL. */
+  agenciaLogo: string;
+  cor: string;
+
+  /* Fechamento */
   validadeDias: number;
   observacoes: string;
 }
 
-export const COR_PADRAO = "#0b5ed7";
+/* ── Identidade visual (extraída do PDF padrão da agência) ── */
+
+export const MARCA = {
+  navy: "#0A3C90",
+  azul: "#5470FE",
+  cinza: "#E8E8E8",
+  titulo: "#0D2440",
+  corpo: "#12233C",
+  verde: "#7CB342",
+} as const;
+
+export const COR_PADRAO = MARCA.navy;
 
 export const ESTADO_INICIAL: PropostaEstado = {
   clienteEmpresa: "",
   clienteSegmento: "",
-  clienteCidade: "",
   clienteContato: "",
-  clienteCargo: "",
-
-  agenciaNome: "",
-  agenciaSite: "",
-  agenciaWhatsapp: "",
-  agenciaEmail: "",
-  agenciaLogo: "",
-  cor: COR_PADRAO,
 
   problema: "",
   objetivo: "leads",
-  situacao: [],
 
   servicos: [],
   verbaMidia: "",
   meses: 6,
   pagamento: "",
 
-  cases: [],
+  agenciaNome: "Consig Invest",
+  agenciaLinha2: "Agência de Marketing Digital",
+  agenciaSite: "www.consiginvest.com",
+  agenciaWhatsapp: "(51) 98349-3659",
+  agenciaEmail: "contato@consiginvest.com",
+  agenciaLogo: "/logo.png",
+  cor: COR_PADRAO,
+
   validadeDias: 15,
   observacoes: "",
 };
@@ -114,6 +105,7 @@ export const ESTADO_INICIAL: PropostaEstado = {
 export const SEGMENTOS = [
   "Odontologia e clínicas",
   "Advocacia",
+  "Contabilidade",
   "Serviços de emergência",
   "Saúde mental",
   "E-commerce",
@@ -129,114 +121,298 @@ export const OBJETIVOS: { key: Objetivo; label: string }[] = [
   { key: "vender-online", label: "Vender online" },
   { key: "autoridade", label: "Aumentar autoridade" },
   { key: "reduzir-cpl", label: "Reduzir custo por lead" },
-  { key: "reestruturar", label: "Reestruturar conta existente" },
-];
-
-export const SITUACOES: { key: Situacao; label: string }[] = [
-  { key: "anuncia", label: "Já anuncia" },
-  { key: "site", label: "Tem site" },
-  { key: "google", label: "Tem perfil no Google" },
-  { key: "rastreamento", label: "Tem rastreamento configurado" },
-  { key: "crm", label: "Tem CRM" },
+  { key: "reestruturar", label: "Reestruturar o que já roda" },
 ];
 
 export const PRAZOS = [3, 6, 12] as const;
 
-/** Modelos em branco: estrutura pronta, nenhum valor sugerido. */
-export const MODELOS_SERVICO: Omit<Servico, "id">[] = [
+/* ── Catálogo de serviços e valores ──────────────────────── */
+
+export interface ItemCatalogo {
+  nome: string;
+  descricao: string;
+  tipo: TipoCobranca;
+  valor: string;
+  entregas: string[];
+  /** Agrupamento na interface. */
+  grupo: "Anúncios" | "Google" | "SEO" | "Site" | "Social Media" | "Mensagens";
+}
+
+/**
+ * Tabela de planos e valores da agência.
+ *
+ * ATENÇÃO: esta ferramenta é pública. Tudo o que está aqui vai para o
+ * JavaScript da página e pode ser lido por qualquer visitante. Entrou aqui a
+ * pedido do dono (14/09/2026); se um dia precisar ficar privado, o caminho é
+ * servir o catálogo por rota autenticada em runtime, não esconder no bundle.
+ */
+export const CATALOGO: ItemCatalogo[] = [
   {
+    grupo: "Anúncios",
     nome: "Gestão de Google Ads",
     descricao:
-      "Campanhas na rede de pesquisa para quem já está procurando o serviço, com foco em custo por lead qualificado.",
+      "Campanhas na rede de pesquisa para aparecer no momento em que a pessoa está procurando pelo serviço.",
     tipo: "mensal",
-    valor: "",
+    valor: "1.000,00",
     entregas: [
-      "Estrutura de campanhas por intenção de busca",
-      "Pesquisa de palavras-chave e lista de negativas",
-      "Textos de anúncio e extensões",
-      "Acompanhamento de lances e ajuste semanal",
-      "Relatório mensal com custo por lead",
+      "Criação e configuração completa da campanha",
+      "Pesquisa de palavras-chave (alta intenção de conversão)",
+      "Criação de grupos de anúncios e segmentações",
+      "Configuração de conversões (WhatsApp, formulário, ligação)",
+      "Otimizações semanais de performance",
+      "Negativação de palavras-chave para evitar cliques ruins",
+      "Ajuste de orçamento e estratégia de lances",
+      "Relatório semanal em vídeo com análise e melhorias",
     ],
   },
   {
+    grupo: "Anúncios",
     nome: "Gestão de Meta Ads",
     descricao:
-      "Campanhas no Facebook e Instagram para alcançar quem ainda não procura pelo serviço, com medição de conversa iniciada e lead.",
+      "Campanhas no Facebook e Instagram para alcançar quem ainda não procura pelo serviço, com medição de lead e conversa iniciada.",
     tipo: "mensal",
-    valor: "",
+    valor: "1.000,00",
     entregas: [
-      "Públicos frios, de remarketing e semelhantes",
-      "Testes de criativo e de oferta",
-      "Formulário instantâneo ou destino no site",
-      "Acompanhamento de custo por lead",
-      "Relatório mensal",
+      "Criação e estruturação do gerenciador de anúncios",
+      "Configuração de pixel e eventos (quando aplicável)",
+      "Criação de campanhas para tráfego, leads ou WhatsApp",
+      "Segmentação por interesse + comportamento + região",
+      "Criação de públicos personalizados e remarketing",
+      "Testes A/B de criativos e públicos",
+      "Otimização contínua para reduzir custo por lead",
+      "Ajuste de orçamento e escala de campanhas",
+      "Relatório semanal em vídeo com análise e melhorias",
     ],
   },
   {
-    nome: "SEO",
-    descricao:
-      "Trabalho de posicionamento orgânico: correções técnicas, conteúdo e autoridade para capturar busca de alta intenção sem pagar por clique.",
-    tipo: "mensal",
-    valor: "",
-    entregas: [
-      "Auditoria técnica e correções",
-      "Pesquisa de palavras-chave por intenção",
-      "Produção ou revisão de páginas",
-      "Ficha do Google otimizada",
-      "Relatório de posições e tráfego",
-    ],
-  },
-  {
-    nome: "Site",
-    descricao:
-      "Site institucional pensado para converter visita em contato, e não apenas para apresentar a empresa.",
+    grupo: "Google",
+    nome: "Google Meu Negócio",
+    descricao: "Criação e configuração completa do perfil da empresa no Google e no Maps.",
     tipo: "unico",
-    valor: "",
+    valor: "500,00",
     entregas: [
-      "Arquitetura de páginas e textos",
-      "Layout responsivo",
-      "Formulário e botão de WhatsApp",
-      "Rastreamento instalado",
-      "Publicação e treinamento de uso",
+      "Criação e configuração completa do perfil",
+      "Cadastro correto de endereço, área atendida e categorias",
+      "Configuração de serviços e descrição profissional",
+      "Inserção de horário, telefone, site e WhatsApp",
+      "Otimização para aparecer no Google Maps",
+      "Configuração inicial de fotos e identidade",
+      "Orientação para começar a receber avaliações",
     ],
   },
   {
+    grupo: "Google",
+    nome: "Atualização do Google Meu Negócio",
+    descricao: "Revisão e otimização de um perfil que já existe, para ranquear melhor no local.",
+    tipo: "unico",
+    valor: "300,00",
+    entregas: [
+      "Revisão e correção de dados",
+      "Atualização de descrição e serviços",
+      "Ajuste de categorias e posicionamento local",
+      "Postagens iniciais no perfil",
+      "Melhoria de palavras-chave no perfil",
+      "Checklist de otimização completa para ranqueamento",
+    ],
+  },
+  {
+    grupo: "SEO",
+    nome: "SEO Básico",
+    descricao: "Posicionamento orgânico local: o essencial para ser encontrado na busca da região.",
+    tipo: "mensal",
+    valor: "300,00",
+    entregas: [
+      "Pesquisa de palavras-chave locais (ex.: “serviço + cidade”)",
+      "Otimização de títulos e descrições das páginas (SEO On-Page)",
+      "Ajuste de URLs e estrutura do site",
+      "Configuração básica de SEO técnico",
+      "Otimização de página inicial e páginas principais",
+      "Estratégia de posicionamento no Google local",
+      "Relatório mensal simples de evolução",
+    ],
+  },
+  {
+    grupo: "SEO",
+    nome: "SEO Completo",
+    descricao:
+      "Planejamento de seis meses com conteúdo, blog e autoridade para capturar busca de alta intenção sem pagar por clique.",
+    tipo: "mensal",
+    valor: "800,00",
+    entregas: [
+      "Planejamento estratégico de SEO completo (6 meses)",
+      "Pesquisa avançada de palavras-chave (SEO local + nacional)",
+      "Criação de artigos e conteúdos para blog (SEO Conteúdo)",
+      "Publicação e otimização de posts semanal/mensal",
+      "Estruturação de blog e categorias para ranqueamento",
+      "Otimização contínua de páginas e conteúdos",
+      "Estratégia para aumentar autoridade do site no Google",
+      "Monitoramento de crescimento orgânico e ranking de palavras-chave",
+      "Relatórios mensais detalhados com evolução",
+    ],
+  },
+  {
+    grupo: "Site",
+    nome: "Site Completo",
+    descricao: "Site institucional de até 6 páginas, pensado para converter visita em contato.",
+    tipo: "unico",
+    valor: "1.590,00",
+    entregas: [
+      "Até 6 páginas",
+      "Domínio .com.br (1 ano)",
+      "Hospedagem (1 ano)",
+      "E-mail profissional (1 ano)",
+      "Layout profissional responsivo (celular e PC)",
+      "Apresentação institucional e criação de conteúdo de blog para SEO",
+      "Botão WhatsApp e formulários integrados",
+      "Suporte e manutenção",
+    ],
+  },
+  {
+    grupo: "Site",
     nome: "Landing Page",
-    descricao:
-      "Página única de destino para campanha, com uma oferta e um caminho de conversão.",
+    descricao: "Página única de destino para campanha, com uma oferta e um caminho de conversão.",
     tipo: "unico",
-    valor: "",
+    valor: "899,00",
     entregas: [
-      "Estrutura de argumento e prova",
-      "Layout responsivo",
-      "Formulário e WhatsApp com rastreamento",
-      "Teste em celular e computador",
+      "1 página",
+      "Domínio .com.br (1 ano)",
+      "Hospedagem (1 ano)",
+      "E-mail profissional (1 ano)",
+      "Layout profissional responsivo (celular e PC)",
+      "Página focada em conversão (WhatsApp ou formulário)",
+      "Integração com botão WhatsApp",
+      "Suporte e manutenção",
     ],
   },
   {
-    nome: "Social Media",
-    descricao:
-      "Conteúdo de perfil para sustentar a decisão de quem chega pelos anúncios e pela busca.",
+    grupo: "Social Media",
+    nome: "Social Media — Básico",
+    descricao: "Presença organizada no perfil, com calendário e artes padronizadas.",
     tipo: "mensal",
-    valor: "",
+    valor: "500,00",
     entregas: [
-      "Planejamento de pauta mensal",
-      "Peças e legendas",
-      "Publicação programada",
-      "Relatório mensal",
+      "12 posts estáticos",
+      "Identidade visual padronizada",
+      "Artes com copy persuasiva",
+      "Calendário mensal de postagens",
+      "Bio otimizada e ajustes no perfil",
+      "Sugestão de hashtags e temas",
     ],
   },
   {
-    nome: "Automação",
-    descricao:
-      "Resposta e distribuição automática dos contatos que chegam, para que nenhum lead fique sem atendimento.",
+    grupo: "Social Media",
+    nome: "Social Media — Prata",
+    descricao: "Mais volume de posts e a entrada do vídeo curto no perfil.",
     tipo: "mensal",
-    valor: "",
+    valor: "800,00",
     entregas: [
-      "Fluxo de primeira resposta no WhatsApp",
-      "Distribuição dos contatos para o time",
-      "Integração com o CRM",
-      "Acompanhamento e ajuste dos fluxos",
+      "20 posts estáticos",
+      "Identidade visual profissional",
+      "Edição básica de vídeo (Reels simples)",
+      "10 roteiros prontos para Reels",
+      "Calendário mensal estratégico",
+      "Copy e legendas otimizadas",
+    ],
+  },
+  {
+    grupo: "Social Media",
+    nome: "Social Media — Ouro",
+    descricao: "Volume alto e edição completa de vídeo, com conteúdo focado em autoridade e venda.",
+    tipo: "mensal",
+    valor: "1.200,00",
+    entregas: [
+      "30 posts estáticos",
+      "10 artes para Stories",
+      "Edição completa de vídeo (Reels com cortes, legenda e ritmo)",
+      "60 roteiros prontos para Reels",
+      "Planejamento estratégico do mês inteiro",
+      "Conteúdo focado em autoridade + vendas",
+    ],
+  },
+  {
+    grupo: "Social Media",
+    nome: "Social Media — Diamante",
+    descricao: "Operação completa de conteúdo, com postagem diária e acompanhamento semanal.",
+    tipo: "mensal",
+    valor: "2.000,00",
+    entregas: [
+      "40 posts estáticos premium",
+      "20 artes para Stories (sequência estratégica)",
+      "Reels editados completos (legenda + cortes + efeitos + ritmo)",
+      "100 roteiros prontos para Reels (autoridade + vendas)",
+      "Planejamento estratégico mensal completo",
+      "Calendário de conteúdo avançado (postagens diárias)",
+      "Copy persuasiva profissional para posts e Reels",
+      "Criação de destaques (capas e organização do perfil)",
+      "Otimização completa do Instagram (bio, nome, categorias)",
+      "Estratégia de crescimento e posicionamento de marca",
+      "Suporte direto para ideias e direcionamento semanal",
+      "Análise de concorrentes e referências de conteúdo",
+      "Relatório semanal com insights e próximos passos",
+    ],
+  },
+  {
+    grupo: "Mensagens",
+    nome: "Disparo de WhatsApp — Software",
+    descricao: "Licença e configuração do software de disparo na máquina do cliente.",
+    tipo: "unico",
+    valor: "500,00",
+    entregas: [
+      "Licença do software por 1 ano",
+      "Configuração completa no computador",
+      "Configuração de múltiplas contas",
+      "Treinamento online para uso correto",
+      "Suporte técnico incluso",
+      "Orientação para evitar bloqueios e melhorar entregabilidade",
+    ],
+  },
+  {
+    grupo: "Mensagens",
+    nome: "Disparo de WhatsApp — API oficial",
+    descricao:
+      "Implementação da API oficial e operação mensal das campanhas. Mensagens do tipo Utility custam R$ 0,06 cada, cobradas à parte pela Meta.",
+    tipo: "mensal",
+    valor: "500,00",
+    entregas: [
+      "Configuração completa da API oficial",
+      "Integração com o WhatsApp Business Manager",
+      "Ajuste de templates e mensagens padrão",
+      "Configuração inicial de automações",
+      "Treinamento básico para operação",
+      "Programação de disparos e campanhas",
+      "Criação de mensagens automáticas",
+      "Segmentação e organização de listas",
+      "Monitoramento, suporte e melhorias mensais",
+    ],
+  },
+  {
+    grupo: "Mensagens",
+    nome: "E-mail Marketing — implantação",
+    descricao: "Ferramenta configurada, domínio autenticado e estrutura de listas pronta para uso.",
+    tipo: "unico",
+    valor: "500,00",
+    entregas: [
+      "Configuração completa da ferramenta",
+      "Configuração de domínio (SPF/DKIM/DMARC)",
+      "Criação de estrutura de listas e segmentação",
+      "Template profissional padrão",
+      "Configuração de automações básicas",
+      "Treinamento inicial",
+    ],
+  },
+  {
+    grupo: "Mensagens",
+    nome: "Disparo de E-mail Marketing",
+    descricao:
+      "Operação mensal dos envios. O valor acompanha o volume contratado — ajuste o campo conforme a faixa.",
+    tipo: "mensal",
+    valor: "300,00",
+    entregas: [
+      "10 mil e-mails/mês — R$ 300,00",
+      "20 mil e-mails/mês — R$ 400,00",
+      "40 mil e-mails/mês — R$ 550,00",
+      "60 mil e-mails/mês — R$ 700,00",
+      "100 mil e-mails/mês — R$ 1.000,00",
     ],
   },
 ];
@@ -258,7 +434,7 @@ export const METODO = [
     n: 3,
     titulo: "Start",
     texto:
-      "Campanhas no ar, leitura semanal dos números e ajuste do que estiver caro ou fora do perfil. Relatório mensal com custo por lead e conversão em cliente.",
+      "Campanhas no ar, leitura semanal dos números e ajuste do que estiver caro ou fora do perfil. Relatório com custo por lead e conversão em cliente.",
   },
 ];
 
@@ -345,30 +521,6 @@ const LEITURA_OBJETIVO: Record<Objetivo, string> = {
     "O que está em jogo aqui é arrumar o que já existe antes de colocar mais dinheiro. Por isso o trabalho começa por estrutura, rastreamento e limpeza do que gasta sem gerar contato qualificado.",
 };
 
-/** Como cada item aparece quando o cliente TEM. */
-const SITUACAO_POSITIVA: Record<Situacao, string> = {
-  anuncia: "já anuncia",
-  site: "tem site",
-  google: "tem perfil no Google",
-  rastreamento: "tem rastreamento configurado",
-  crm: "tem CRM",
-};
-
-/** Substantivo usado na frase de negação ("ainda não tem site nem CRM"). */
-const SITUACAO_SUBSTANTIVO: Record<Exclude<Situacao, "anuncia">, string> = {
-  site: "site",
-  google: "perfil no Google",
-  rastreamento: "rastreamento configurado",
-  crm: "CRM",
-};
-
-function listar(itens: string[], conector = "e"): string {
-  if (itens.length === 0) return "";
-  const ultimo = itens[itens.length - 1] ?? "";
-  if (itens.length === 1) return ultimo;
-  return `${itens.slice(0, -1).join(", ")} ${conector} ${ultimo}`;
-}
-
 /** Conselhos de classe: comunicação com restrição própria (§ conteúdo). */
 export function avisoConselho(segmento: string): string | null {
   const s = segmento.toLowerCase();
@@ -399,34 +551,6 @@ export function textoDiagnostico(e: PropostaEstado): string[] {
 
   p.push(LEITURA_OBJETIVO[e.objetivo]);
 
-  const tem = e.situacao.map((s) => SITUACAO_POSITIVA[s]);
-
-  const negacoes: string[] = [];
-  if (!e.situacao.includes("anuncia")) negacoes.push("ainda não anuncia");
-  const faltando = (["site", "google", "rastreamento", "crm"] as const)
-    .filter((k) => !e.situacao.includes(k))
-    .map((k) => SITUACAO_SUBSTANTIVO[k]);
-  if (faltando.length) negacoes.push(`ainda não tem ${listar(faltando, "nem")}`);
-
-  if (tem.length || negacoes.length) {
-    let frase: string;
-    if (tem.length && negacoes.length) {
-      frase = `Hoje ${empresa} ${listar(tem)}, e ${listar(negacoes)}.`;
-    } else if (tem.length) {
-      frase = `Hoje ${empresa} ${listar(tem)}.`;
-    } else {
-      frase = `Hoje ${empresa} ${listar(negacoes)}.`;
-    }
-    if (!e.situacao.includes("rastreamento")) {
-      frase +=
-        " Sem rastreamento configurado não dá para saber qual campanha gerou qual contato, então medir é a primeira entrega — antes de aumentar qualquer verba.";
-    }
-    if (e.clienteCidade.trim()) {
-      frase += ` O atendimento considerado é em ${e.clienteCidade.trim()}.`;
-    }
-    p.push(frase);
-  }
-
   p.push(
     "Sobre ritmo: tráfego pago costuma dar sinal em dias; SEO, em semanas a meses. Nenhum dos dois é previsão de resultado — o que está no contrato é método, medição e ajuste do que estiver caro ou fora do perfil."
   );
@@ -435,7 +559,7 @@ export function textoDiagnostico(e: PropostaEstado): string[] {
 }
 
 export const AVISO_VERBA =
-  "A verba de mídia é paga por você diretamente a Google e Meta, no cartão cadastrado na sua conta de anúncios. Ela não faz parte do fee de gestão e não é repassada a nós em nenhum momento.";
+  "O valor investido nos anúncios é pago diretamente a Google e Meta, separado da gestão, com pagamento feito na própria plataforma via Pix ou cartão de crédito, com total controle do cliente sobre a verba de mídia.";
 
 export const AVISO_VERBA_CURTO =
   "Verba paga direto à plataforma — fora do fee de gestão.";
@@ -447,7 +571,7 @@ export function textoWhatsApp(e: PropostaEstado): string {
   const L: string[] = [];
   const empresa = e.clienteEmpresa.trim() || "sua empresa";
 
-  L.push(`*PROPOSTA COMERCIAL — ${empresa.toUpperCase()}*`);
+  L.push(`*PROPOSTA DE MARKETING — ${empresa.toUpperCase()}*`);
   if (e.agenciaNome.trim()) L.push(`Enviada por ${e.agenciaNome.trim()}`);
   L.push(`Válida por ${e.validadeDias} dias (até ${dataValidade(e)})`);
   L.push("");
@@ -459,11 +583,10 @@ export function textoWhatsApp(e: PropostaEstado): string {
   if (e.servicos.length) {
     L.push("🧩 *O QUE ENTRA*");
     e.servicos.forEach((s) => {
-      const valor = parseBRL(s.valor);
       const sufixo = s.tipo === "mensal" ? "/mês" : " (valor único)";
-      L.push(`▪️ *${s.nome || "Serviço"}* — ${fmtBRL.format(valor)}${sufixo}`);
+      L.push(`▪️ *${s.nome || "Serviço"}* — ${fmtBRL.format(parseBRL(s.valor))}${sufixo}`);
       if (s.descricao.trim()) L.push(s.descricao.trim());
-      s.entregas.filter(Boolean).forEach((en) => L.push(`  • ${en}`));
+      s.entregas.filter(Boolean).forEach((en) => L.push(`  ✅ ${en}`));
       L.push("");
     });
   }
@@ -473,8 +596,10 @@ export function textoWhatsApp(e: PropostaEstado): string {
   if (inv.subtotalUnico > 0) L.push(`Valor único (implantação): ${fmtBRL.format(inv.subtotalUnico)}`);
   L.push(`Primeiro mês: ${fmtBRL.format(inv.primeiroMes)}`);
   L.push(`Total do contrato (${inv.meses} meses): ${fmtBRL.format(inv.totalContrato)}`);
-  L.push("");
-  L.push(`📣 Verba de mídia sugerida: ${fmtBRL.format(inv.verbaMidia)}/mês`);
+  if (inv.verbaMidia > 0) {
+    L.push("");
+    L.push(`📣 Verba de mídia sugerida: ${fmtBRL.format(inv.verbaMidia)}/mês`);
+  }
   L.push(AVISO_VERBA);
   if (e.pagamento.trim()) {
     L.push("");
@@ -485,16 +610,6 @@ export function textoWhatsApp(e: PropostaEstado): string {
   L.push("🛠️ *COMO COMEÇA*");
   METODO.forEach((m) => L.push(`${m.n}. *${m.titulo}* — ${m.texto}`));
   L.push("");
-
-  const cases = e.cases.slice(0, 3).filter((c) => c.resultado.trim() || c.nicho.trim());
-  if (cases.length) {
-    L.push("📈 *O QUE JÁ FIZEMOS*");
-    cases.forEach((c) => {
-      L.push(`▪️ ${c.nicho.trim()}: ${c.resultado.trim()}`);
-      if (c.contexto.trim()) L.push(`  ${c.contexto.trim()}`);
-    });
-    L.push("");
-  }
 
   const aviso = avisoConselho(e.clienteSegmento);
   if (aviso) {
@@ -521,15 +636,50 @@ export function textoWhatsApp(e: PropostaEstado): string {
 /* ── Datas ───────────────────────────────────────────────── */
 
 const fmtData = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" });
+const MESES = [
+  "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+  "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
+];
 
 export function dataHoje(base = new Date()): string {
   return fmtData.format(base);
+}
+
+/** Linha da capa no padrão do template: "SETEMBRO / 2026". */
+export function mesAno(base = new Date()): string {
+  return `${MESES[base.getMonth()] ?? ""} / ${base.getFullYear()}`;
 }
 
 export function dataValidade(e: PropostaEstado, base = new Date()): string {
   const d = new Date(base);
   d.setDate(d.getDate() + (Number(e.validadeDias) || 0));
   return fmtData.format(d);
+}
+
+/* ── Paginação do documento ──────────────────────────────── */
+
+/**
+ * Quebra os serviços em páginas A4 antes de imprimir. Fazemos a conta aqui
+ * (em vez de deixar o navegador quebrar sozinho) porque cada página do padrão
+ * tem ondas no topo e no rodapé: conteúdo transbordando invadiria a arte.
+ */
+export function paginarServicos(servicos: Servico[], linhasPorPagina = 24): Servico[][] {
+  const paginas: Servico[][] = [];
+  let atual: Servico[] = [];
+  let linhas = 0;
+
+  for (const s of servicos) {
+    const custo = 3 + (s.descricao.trim() ? 2 : 0) + s.entregas.filter((x) => x.trim()).length;
+    if (atual.length && linhas + custo > linhasPorPagina) {
+      paginas.push(atual);
+      atual = [];
+      linhas = 0;
+    }
+    atual.push(s);
+    linhas += custo;
+  }
+  if (atual.length) paginas.push(atual);
+  return paginas;
 }
 
 /* ── Link compartilhável (?p=base64) ─────────────────────── */
@@ -551,11 +701,10 @@ function b64decode(b64: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-/** Serializa o estado SEM a logo — data URL de imagem não cabe numa URL. */
+/** Serializa o estado; data URL de logo fica de fora (não cabe numa URL). */
 export function serializar(e: PropostaEstado): string {
-  const { agenciaLogo: _logo, ...resto } = e;
-  void _logo;
-  return b64encode(JSON.stringify(resto));
+  const enxuto = { ...e, agenciaLogo: e.agenciaLogo.startsWith("data:") ? "" : e.agenciaLogo };
+  return b64encode(JSON.stringify(enxuto));
 }
 
 export function desserializar(b64: string): PropostaEstado | null {
@@ -572,28 +721,16 @@ export function desserializar(b64: string): PropostaEstado | null {
 export function normalizar(bruto: Partial<PropostaEstado>): PropostaEstado {
   const texto = (v: unknown, padrao = ""): string => (typeof v === "string" ? v : padrao);
   const objetivosValidos = OBJETIVOS.map((o) => o.key);
-  const situacoesValidas = SITUACOES.map((s) => s.key);
 
   return {
     ...ESTADO_INICIAL,
     clienteEmpresa: texto(bruto.clienteEmpresa),
     clienteSegmento: texto(bruto.clienteSegmento),
-    clienteCidade: texto(bruto.clienteCidade),
     clienteContato: texto(bruto.clienteContato),
-    clienteCargo: texto(bruto.clienteCargo),
-    agenciaNome: texto(bruto.agenciaNome),
-    agenciaSite: texto(bruto.agenciaSite),
-    agenciaWhatsapp: texto(bruto.agenciaWhatsapp),
-    agenciaEmail: texto(bruto.agenciaEmail),
-    agenciaLogo: texto(bruto.agenciaLogo),
-    cor: /^#[0-9a-f]{6}$/i.test(texto(bruto.cor)) ? texto(bruto.cor) : COR_PADRAO,
     problema: texto(bruto.problema),
     objetivo: objetivosValidos.includes(bruto.objetivo as Objetivo)
       ? (bruto.objetivo as Objetivo)
       : "leads",
-    situacao: Array.isArray(bruto.situacao)
-      ? bruto.situacao.filter((s): s is Situacao => situacoesValidas.includes(s as Situacao))
-      : [],
     servicos: Array.isArray(bruto.servicos)
       ? bruto.servicos.slice(0, 20).map((s, i) => ({
           id: texto(s?.id, `s${i}`),
@@ -602,21 +739,23 @@ export function normalizar(bruto: Partial<PropostaEstado>): PropostaEstado {
           tipo: s?.tipo === "unico" ? "unico" : "mensal",
           valor: texto(s?.valor),
           entregas: Array.isArray(s?.entregas)
-            ? s.entregas.filter((x): x is string => typeof x === "string").slice(0, 15)
+            ? s.entregas.filter((x): x is string => typeof x === "string").slice(0, 20)
             : [],
         }))
       : [],
     verbaMidia: texto(bruto.verbaMidia),
     meses: Number.isFinite(Number(bruto.meses)) ? Math.max(1, Math.round(Number(bruto.meses))) : 6,
     pagamento: texto(bruto.pagamento),
-    cases: Array.isArray(bruto.cases)
-      ? bruto.cases.slice(0, 3).map((c, i) => ({
-          id: texto(c?.id, `c${i}`),
-          nicho: texto(c?.nicho),
-          resultado: texto(c?.resultado),
-          contexto: texto(c?.contexto),
-        }))
-      : [],
+    agenciaNome: texto(bruto.agenciaNome, ESTADO_INICIAL.agenciaNome),
+    agenciaLinha2: texto(bruto.agenciaLinha2, ESTADO_INICIAL.agenciaLinha2),
+    agenciaSite: texto(bruto.agenciaSite, ESTADO_INICIAL.agenciaSite),
+    agenciaWhatsapp: texto(bruto.agenciaWhatsapp, ESTADO_INICIAL.agenciaWhatsapp),
+    agenciaEmail: texto(bruto.agenciaEmail, ESTADO_INICIAL.agenciaEmail),
+    // Só aceita caminho interno ou data URL — nunca um host externo vindo do link.
+    agenciaLogo: /^(\/|data:image\/)/.test(texto(bruto.agenciaLogo))
+      ? texto(bruto.agenciaLogo)
+      : ESTADO_INICIAL.agenciaLogo,
+    cor: /^#[0-9a-f]{6}$/i.test(texto(bruto.cor)) ? texto(bruto.cor) : COR_PADRAO,
     validadeDias: Number.isFinite(Number(bruto.validadeDias))
       ? Math.max(1, Math.round(Number(bruto.validadeDias)))
       : 15,
@@ -668,7 +807,7 @@ export function salvarRascunho(id: string, estado: PropostaEstado): { ok: boolea
     return {
       ok: false,
       erro:
-        "O navegador recusou salvar — normalmente é a logo ocupando espaço demais. Remova a logo ou apague um rascunho antigo e tente de novo.",
+        "O navegador recusou salvar — normalmente é a logo ocupando espaço demais. Troque a logo ou apague um rascunho antigo e tente de novo.",
     };
   }
 }
@@ -683,35 +822,4 @@ export function excluirRascunho(id: string): void {
   } catch {
     /* localStorage indisponível — ignora */
   }
-}
-
-/* ── Gancho de catálogo (Caminho A + preset) ─────────────── */
-
-/**
- * Estrutura para um dia carregar um catálogo pronto de serviços (ex.: a tabela
- * de uma agência) sem mexer nesta ferramenta.
- *
- * IMPORTANTE: nenhum preset com valor real pode ser importado estaticamente
- * aqui — isso jogaria a tabela de preços dentro do bundle público. O preset
- * deve chegar em tempo de execução, de uma rota que exige autenticação, e o
- * resultado ser passado para `aplicarPreset`.
- */
-export interface CatalogPreset {
-  nome: string;
-  servicos: Omit<Servico, "id">[];
-  verbaMidiaSugerida?: string;
-  pagamento?: string;
-  cases?: Omit<CaseProva, "id">[];
-}
-
-export function aplicarPreset(e: PropostaEstado, preset: CatalogPreset): PropostaEstado {
-  return {
-    ...e,
-    servicos: preset.servicos.map((s, i) => ({ ...s, id: `preset-${i}-${Date.now()}` })),
-    verbaMidia: preset.verbaMidiaSugerida ?? e.verbaMidia,
-    pagamento: preset.pagamento ?? e.pagamento,
-    cases: preset.cases
-      ? preset.cases.slice(0, 3).map((c, i) => ({ ...c, id: `presetc-${i}-${Date.now()}` }))
-      : e.cases,
-  };
 }

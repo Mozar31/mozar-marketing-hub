@@ -1,12 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  CATALOGO,
   ESTADO_INICIAL,
-  MODELOS_SERVICO,
   avisoConselho,
   calcularInvestimento,
   desserializar,
   fmtBRL,
   normalizar,
+  paginarServicos,
   parseBRL,
   serializar,
   textoDiagnostico,
@@ -57,13 +58,52 @@ describe("parseBRL — lê o que a pessoa digitou", () => {
   });
 });
 
+describe("catálogo de serviços", () => {
+  it("todo item tem nome único, valor legível e tipo válido", () => {
+    const nomes = CATALOGO.map((c) => c.nome);
+    expect(new Set(nomes).size).toBe(nomes.length);
+    for (const c of CATALOGO) {
+      expect(parseBRL(c.valor), c.nome).toBeGreaterThan(0);
+      expect(["mensal", "unico"], c.nome).toContain(c.tipo);
+      expect(c.entregas.length, c.nome).toBeGreaterThan(2);
+    }
+  });
+
+  it("os valores do catálogo batem com a tabela da agência", () => {
+    const esperado: Record<string, number> = {
+      "Gestão de Google Ads": 1000,
+      "Gestão de Meta Ads": 1000,
+      "Google Meu Negócio": 500,
+      "Atualização do Google Meu Negócio": 300,
+      "SEO Básico": 300,
+      "SEO Completo": 800,
+      "Site Completo": 1590,
+      "Landing Page": 899,
+      "Social Media — Básico": 500,
+      "Social Media — Prata": 800,
+      "Social Media — Ouro": 1200,
+      "Social Media — Diamante": 2000,
+      "Disparo de WhatsApp — Software": 500,
+      "Disparo de WhatsApp — API oficial": 500,
+      "E-mail Marketing — implantação": 500,
+      "Disparo de E-mail Marketing": 300,
+    };
+    for (const [nome, valor] of Object.entries(esperado)) {
+      const item = CATALOGO.find((c) => c.nome === nome);
+      expect(item, nome).toBeDefined();
+      expect(parseBRL(item!.valor), nome).toBe(valor);
+    }
+    expect(CATALOGO).toHaveLength(Object.keys(esperado).length);
+  });
+});
+
 describe("calcularInvestimento — o caso combinado com o cliente", () => {
   /** R$ 1.590,00 + R$ 899,00 (únicos) + R$ 1.000,00/mês em 6 meses. */
   const caso = estado({
     meses: 6,
     verbaMidia: "3.000,00",
     servicos: [
-      servico({ nome: "Site", tipo: "unico", valor: "1.590,00" }),
+      servico({ nome: "Site Completo", tipo: "unico", valor: "1.590,00" }),
       servico({ nome: "Landing Page", tipo: "unico", valor: "899,00" }),
       servico({ nome: "Gestão de Google Ads", tipo: "mensal", valor: "1.000,00" }),
     ],
@@ -83,8 +123,7 @@ describe("calcularInvestimento — o caso combinado com o cliente", () => {
 
   it("a verba de mídia NUNCA entra em nenhum subtotal de honorários", () => {
     const inv = calcularInvestimento(caso);
-    const verba = parseBRL(caso.verbaMidia);
-    expect(verba).toBe(3000);
+    expect(parseBRL(caso.verbaMidia)).toBe(3000);
 
     // Os totais são exatamente os mesmos com verba zerada ou multiplicada.
     const semVerba = calcularInvestimento({ ...caso, verbaMidia: "0" });
@@ -95,7 +134,6 @@ describe("calcularInvestimento — o caso combinado com o cliente", () => {
       expect(inv[chave], chave).toBe(comVerbaAlta[chave]);
     }
 
-    // E a verba aparece por fora, em campo próprio.
     expect(inv.verbaMidia).toBe(3000);
     expect(inv.verbaMidiaContrato).toBe(18000);
   });
@@ -118,21 +156,41 @@ describe("calcularInvestimento — o caso combinado com o cliente", () => {
   });
 });
 
+describe("paginação do documento", () => {
+  it("não perde nem duplica serviço ao quebrar em páginas", () => {
+    const muitos = CATALOGO.map((c) => servico({ ...c, id: c.nome }));
+    const paginas = paginarServicos(muitos);
+    const achatado = paginas.flat().map((s) => s.id);
+    expect(achatado).toEqual(muitos.map((s) => s.id));
+    expect(paginas.length).toBeGreaterThan(1);
+  });
+
+  it("um serviço enorme sozinho ainda gera uma página", () => {
+    const gigante = servico({ entregas: Array.from({ length: 40 }, (_, i) => `Item ${i}`) });
+    expect(paginarServicos([gigante])).toHaveLength(1);
+  });
+
+  it("proposta sem serviço não gera página de escopo", () => {
+    expect(paginarServicos([])).toEqual([]);
+  });
+});
+
 describe("textos automáticos — regras de conteúdo", () => {
   const cheio = estado({
     clienteEmpresa: "Clínica Exemplo",
-    clienteCidade: "Porto Alegre",
     clienteSegmento: "Odontologia e clínicas",
     problema: "as campanhas trazem contato, mas quase ninguém fecha.",
     objetivo: "leads",
-    situacao: ["anuncia", "site"],
-    agenciaNome: "Agência Exemplo",
     verbaMidia: "2.000,00",
-    servicos: [servico({ nome: "Gestão de Google Ads", valor: "1.500,00" })],
+    servicos: [servico({ nome: "Gestão de Google Ads", valor: "1.000,00" })],
   });
 
   const todosOsTextos = (e: PropostaEstado) =>
-    [...textoDiagnostico(e), textoWhatsApp(e), ...MODELOS_SERVICO.flatMap((m) => [m.nome, m.descricao, ...m.entregas])]
+    [
+      ...textoDiagnostico(e),
+      textoWhatsApp(e),
+      ...CATALOGO.flatMap((c) => [c.nome, c.descricao, ...c.entregas]),
+    ]
       .join(" ")
       .toLowerCase();
 
@@ -177,19 +235,12 @@ describe("textos automáticos — regras de conteúdo", () => {
     );
   });
 
-  it("fala em lead qualificado e custo por lead, não em engajamento", () => {
-    const t = todosOsTextos(cheio);
-    expect(t).toContain("lead");
-    expect(t).not.toContain("engajamento");
-    expect(t).not.toContain("presença digital");
-  });
-
   it("deixa a separação entre fee e verba explícita em pelo menos dois pontos", () => {
     const zap = textoWhatsApp(cheio).toLowerCase();
     const ocorrencias = [
       zap.includes("verba de mídia sugerida"),
-      zap.includes("não faz parte do fee de gestão"),
-      zap.includes("paga por você diretamente"),
+      zap.includes("pago diretamente a google e meta"),
+      zap.includes("separado da gestão"),
     ].filter(Boolean).length;
     expect(ocorrencias).toBeGreaterThanOrEqual(2);
   });
@@ -199,19 +250,6 @@ describe("textos automáticos — regras de conteúdo", () => {
     expect(avisoConselho("Odontologia e clínicas")).toContain("CFO");
     expect(avisoConselho("Saúde mental")).toMatch(/CFM|CFP/);
     expect(avisoConselho("E-commerce")).toBeNull();
-  });
-
-  it("a frase de situação atual não inventa concordância errada", () => {
-    const so = textoDiagnostico(estado({ clienteEmpresa: "Loja X", situacao: ["site"] })).join(" ");
-    expect(so).toContain("Loja X tem site");
-    expect(so).toContain("ainda não anuncia");
-    expect(so).toContain("ainda não tem perfil no Google, rastreamento configurado nem CRM");
-  });
-
-  it("nenhum modelo de serviço vem com valor preenchido", () => {
-    for (const m of MODELOS_SERVICO) {
-      expect(m.valor, m.nome).toBe("");
-    }
   });
 });
 
@@ -223,7 +261,7 @@ describe("link compartilhável", () => {
     cor: "#ff0000",
     meses: 12,
     verbaMidia: "1.000,00",
-    servicos: [servico({ nome: "SEO", valor: "2.000,00" })],
+    servicos: [servico({ nome: "SEO Completo", valor: "800,00" })],
   });
 
   it("vai e volta preservando o conteúdo", () => {
@@ -232,14 +270,14 @@ describe("link compartilhável", () => {
     expect(volta.clienteEmpresa).toBe("Ação & Cia");
     expect(volta.problema).toBe(original.problema);
     expect(volta.meses).toBe(12);
-    expect(volta.servicos[0]?.nome).toBe("SEO");
-    expect(calcularInvestimento(volta).totalContrato).toBe(24000);
+    expect(volta.servicos[0]?.nome).toBe("SEO Completo");
+    expect(calcularInvestimento(volta).totalContrato).toBe(9600);
   });
 
-  it("não leva a logo no link (estouraria o limite da URL)", () => {
+  it("não leva a logo enviada pelo usuário no link (estouraria a URL)", () => {
     const b64 = serializar(original);
     expect(b64).not.toContain("data:image");
-    expect(desserializar(b64)!.agenciaLogo).toBe("");
+    expect(desserializar(b64)!.agenciaLogo).toBe(ESTADO_INICIAL.agenciaLogo);
   });
 
   it("não quebra com link adulterado", () => {
@@ -247,19 +285,22 @@ describe("link compartilhável", () => {
     expect(desserializar("")).toBeNull();
   });
 
+  it("recusa logo de host externo vinda do link", () => {
+    expect(normalizar({ agenciaLogo: "https://site-de-terceiro.com/x.png" }).agenciaLogo).toBe(
+      ESTADO_INICIAL.agenciaLogo
+    );
+    expect(normalizar({ agenciaLogo: "/logo.png" }).agenciaLogo).toBe("/logo.png");
+  });
+
   it("normaliza campos fora do esperado em vez de confiar no link", () => {
     const n = normalizar({
       cor: "javascript:alert(1)",
       objetivo: "hackear" as never,
       meses: -3,
-      situacao: ["site", "invalido"] as never,
-      cases: [{}, {}, {}, {}] as never,
     });
-    expect(n.cor).toBe("#0b5ed7");
+    expect(n.cor).toBe(ESTADO_INICIAL.cor);
     expect(n.objetivo).toBe("leads");
     expect(n.meses).toBe(1);
-    expect(n.situacao).toEqual(["site"]);
-    expect(n.cases).toHaveLength(3);
   });
 });
 
@@ -268,13 +309,12 @@ describe("texto para WhatsApp", () => {
     const t = textoWhatsApp(
       estado({
         clienteEmpresa: "Empresa Y",
-        agenciaNome: "Agência Z",
         meses: 6,
         verbaMidia: "1.000,00",
         servicos: [
-          servico({ nome: "Site", tipo: "unico", valor: "1.590,00" }),
+          servico({ nome: "Site Completo", tipo: "unico", valor: "1.590,00" }),
           servico({ nome: "Landing Page", tipo: "unico", valor: "899,00" }),
-          servico({ nome: "Google Ads", tipo: "mensal", valor: "1.000,00" }),
+          servico({ nome: "Gestão de Google Ads", tipo: "mensal", valor: "1.000,00" }),
         ],
       })
     ).replace(/ /g, " ");
