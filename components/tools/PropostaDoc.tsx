@@ -37,9 +37,14 @@ const faixa = (y: number, t: number) =>
   ` L1000,${y - 6 + t} C880,${y + 14 + t} 740,${y + 10 + t} 560,${y - 2 + t}` +
   ` C380,${y - 14 + t} 200,${y + 18 + t} 0,${y + t} Z`;
 
-/** Bloco cheio do topo até a onda em `y`. */
+/** Bloco cheio da borda de cima até a onda em `y`. */
 const topo = (y: number) =>
   `M0,0 H1000 V${y - 6} C880,${y + 14} 740,${y + 10} 560,${y - 2} C380,${y - 14} 200,${y + 18} 0,${y} Z`;
+
+/** Bloco cheio da onda em `y` até a borda de baixo (altura `h` do viewBox). */
+const base = (y: number, h: number) =>
+  `M0,${y} C200,${y + 18} 380,${y - 14} 560,${y - 2} C740,${y + 10} 880,${y + 14} 1000,${y - 6}` +
+  ` L1000,${h} L0,${h} Z`;
 
 function OndasTopo({ navy }: { navy: string }) {
   return (
@@ -52,13 +57,13 @@ function OndasTopo({ navy }: { navy: string }) {
 }
 
 function OndasRodape({ navy }: { navy: string }) {
+  // Sem espelhar: a faixa navy é desenhada por último e vai da onda até a borda
+  // de baixo, para não cobrir o cinza e o azul que ficam acima dela.
   return (
     <svg className="pp-ondas pp-ondas-rodape" viewBox="0 0 1000 74" preserveAspectRatio="none" aria-hidden="true">
-      <g transform="translate(0,74) scale(1,-1)">
-        <path d={faixa(4, 16)} fill={MARCA.cinza} />
-        <path d={faixa(20, 16)} fill={MARCA.azul} />
-        <path d={topo(38)} fill={navy} />
-      </g>
+      <path d={faixa(6, 16)} fill={MARCA.cinza} />
+      <path d={faixa(26, 16)} fill={MARCA.azul} />
+      <path d={base(46, 74)} fill={navy} />
     </svg>
   );
 }
@@ -107,7 +112,10 @@ function Marca({ e, centro = false }: { e: PropostaEstado; centro?: boolean }) {
 
 const Check = ({ children }: { children: ReactNode }) => (
   <li className="pp-check">
-    <span className="pp-check-ic" aria-hidden="true" />
+    <svg className="pp-check-ic" viewBox="0 0 16 16" aria-hidden="true">
+      <rect width="16" height="16" rx="3" fill={MARCA.verde} />
+      <path d="M4 8.4l2.6 2.6L12 5.6" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
     <span>{children}</span>
   </li>
 );
@@ -408,13 +416,7 @@ export const PROPOSTA_CSS = `
 
 .pp-lista { list-style: none; margin: 0 0 4mm; padding: 0; }
 .pp-check { display: flex; gap: 7px; font-size: 10pt; line-height: 1.5; margin-bottom: 1.6mm; }
-.pp-check-ic {
-  flex: 0 0 13px; width: 13px; height: 13px; margin-top: 2px; border-radius: 3px;
-  background: var(--pp-verde);
-  background-image:
-    linear-gradient(45deg, transparent 45%, #fff 45%, #fff 58%, transparent 58%),
-    linear-gradient(-45deg, transparent 62%, #fff 62%, #fff 75%, transparent 75%);
-}
+.pp-check-ic { flex: 0 0 13px; width: 13px; height: 13px; margin-top: 2.5px; display: block; }
 
 .pp-servico { margin-bottom: 6mm; }
 .pp-servico-topo {
