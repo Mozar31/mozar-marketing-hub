@@ -663,7 +663,7 @@ export function dataValidade(e: PropostaEstado, base = new Date()): string {
  * (em vez de deixar o navegador quebrar sozinho) porque cada página do padrão
  * tem ondas no topo e no rodapé: conteúdo transbordando invadiria a arte.
  */
-export function paginarServicos(servicos: Servico[], linhasPorPagina = 24): Servico[][] {
+export function paginarServicos(servicos: Servico[], linhasPorPagina = 30): Servico[][] {
   const paginas: Servico[][] = [];
   let atual: Servico[] = [];
   let linhas = 0;
