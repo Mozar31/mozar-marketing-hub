@@ -296,7 +296,7 @@ export const TOOLS: Tool[] = [
   {
     slug: "gerador-de-proposta",
     title: "Gerador de Proposta Comercial para Agência",
-    tagline: "Do diagnóstico ao investimento, em cinco etapas",
+    tagline: "Escolha os serviços e baixe o PDF pronto",
     description:
       "Monte uma proposta comercial de agência de marketing: diagnóstico, escopo, investimento e PDF pronto para enviar. Modelo de proposta gratuito, no navegador.",
     category: "trafego",
