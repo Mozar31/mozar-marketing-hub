@@ -215,8 +215,8 @@ export function PropostaTool() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* ═══ Formulário: uma tela só ═══ */}
+      <div className="flex flex-col gap-8">
+        {/* ═══ Formulário ═══ */}
         <div className="flex flex-col gap-4">
           {/* 1. Cliente */}
           <Bloco n={1} titulo="Para quem é a proposta">
@@ -547,9 +547,9 @@ export function PropostaTool() {
           </details>
         </div>
 
-        {/* ═══ Pré-visualização ═══ */}
+        {/* ═══ Pré-visualização (abaixo do formulário, largura toda) ═══ */}
         <div>
-          <div className="lg:sticky lg:top-4">
+          <div>
             <div className="mb-3 flex flex-wrap gap-2">
               <button type="button" onClick={exportar} className="btn-primary text-sm">
                 🖨️ Exportar PDF
@@ -591,7 +591,7 @@ export function PropostaTool() {
             <p className="mb-2 text-xs text-ink-400">
               Pré-visualização — é exatamente isto que sai no PDF.
             </p>
-            <div className="rounded-xl border border-white/10 bg-navy-900 p-3 lg:max-h-[74vh] lg:overflow-y-auto">
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-navy-900 p-3">
               <div className="pp-preview">
                 <PropostaDoc e={e} />
               </div>
@@ -621,9 +621,9 @@ export function PropostaTool() {
 /** A pré-visualização é o documento A4 reduzido para caber na coluna. */
 const PREVIEW_CSS = `
 .pp-preview { zoom: 0.4; }
-@media (min-width: 640px) { .pp-preview { zoom: 0.6; } }
-@media (min-width: 1024px) { .pp-preview { zoom: 0.44; } }
-@media (min-width: 1280px) { .pp-preview { zoom: 0.56; } }
+@media (min-width: 420px) { .pp-preview { zoom: 0.48; } }
+@media (min-width: 640px) { .pp-preview { zoom: 0.74; } }
+@media (min-width: 900px) { .pp-preview { zoom: 0.96; } }
 `;
 
 /* ── Peças de formulário ─────────────────────────────────── */
