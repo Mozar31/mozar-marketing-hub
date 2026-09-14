@@ -5,6 +5,7 @@ import { TOOLS, getTool, getCategory, toolsByCategory } from "@/lib/registry";
 import { Breadcrumbs, Badge, SourceNote, CtaBlock, ToolCard, IconTile } from "@/components/ui";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ToolRunner } from "@/components/tools/ToolRunner";
+import { ToolContent } from "@/components/tools/ToolContent";
 import { waLink } from "@/lib/config";
 import { SITE_URL } from "@/app/layout";
 
@@ -106,6 +107,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       <ToolRunner slug={tool.slug} />
 
       <SourceNote source={tool.source} />
+
+      {/* Texto longo indexável: a ferramenta em si é client-only. */}
+      <ToolContent slug={tool.slug} />
 
       {related.length > 0 && (
         <section className="mt-14" aria-labelledby="relacionadas">

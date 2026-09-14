@@ -293,6 +293,30 @@ export const TOOLS: Tool[] = [
     featured: true,
   },
 
+  {
+    slug: "gerador-de-proposta",
+    title: "Gerador de Proposta Comercial para Agência",
+    tagline: "Do diagnóstico ao investimento, em cinco etapas",
+    description:
+      "Monte uma proposta comercial de agência de marketing: diagnóstico, escopo, investimento e PDF pronto para enviar. Modelo de proposta gratuito, no navegador.",
+    category: "trafego",
+    keywords: [
+      "gerador de proposta comercial",
+      "modelo de proposta comercial",
+      "proposta de marketing digital",
+      "proposta agencia",
+      "orcamento",
+      "orcamento de marketing",
+      "escopo",
+      "honorarios",
+      "verba de midia",
+      "contrato",
+      "pdf",
+    ],
+    badges: ["local-only", "novo"],
+    featured: true,
+  },
+
   // ═══════════════ Social e mensagens ═══════════════
   {
     slug: "link-whatsapp",

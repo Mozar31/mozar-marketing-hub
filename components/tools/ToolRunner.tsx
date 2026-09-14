@@ -32,6 +32,7 @@ const BreakEvenTool = d(() => import("./MarketingTools").then((m) => ({ default:
 const UtmBuilder = d(() => import("./MarketingTools").then((m) => ({ default: m.UtmBuilder })));
 const WhatsappTool = d(() => import("./MarketingTools").then((m) => ({ default: m.WhatsappTool })));
 const GoogleAdsTool = d(() => import("./AdsTools").then((m) => ({ default: m.GoogleAdsTool })));
+const PropostaTool = d(() => import("./PropostaTool").then((m) => ({ default: m.PropostaTool })));
 const TagsTool = d(() => import("./SiteTools").then((m) => ({ default: m.TagsTool })));
 const SeoTool = d(() => import("./AuditTools").then((m) => ({ default: m.SeoTool })));
 const LinksTool = d(() => import("./AuditTools").then((m) => ({ default: m.LinksTool })));
@@ -65,6 +66,7 @@ const CUSTOM: Record<string, ComponentType> = {
 
   "simulador-roi": RoiTool,
   "analisador-landing-page": LandingTool,
+  "gerador-de-proposta": PropostaTool,
   "calculadora-de-midia": MediaCalculator,
   "break-even-cac-ltv": BreakEvenTool,
   "construtor-utm": UtmBuilder,

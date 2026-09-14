@@ -85,6 +85,7 @@ describe("registry — nenhum botão vazio (PROMPT 17)", () => {
     "comparador-de-concorrentes", "gerador-titulo-descricao", "prontidao-para-ia",
     "simulador-roi", "calculadora-de-midia", "break-even-cac-ltv", "construtor-utm",
     "gerador-google-ads", "analisador-landing-page",
+    "gerador-de-proposta",
     "link-whatsapp", "presets-de-criativos", "estudio-de-cores",
     "limpar-lista-de-contatos", "formatar-json", "texto-base64", "url-encode",
   ];
