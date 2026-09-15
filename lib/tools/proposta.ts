@@ -744,20 +744,34 @@ export function dataValidade(e: PropostaEstado, base = new Date()): string {
  * (em vez de deixar o navegador quebrar sozinho) porque cada página do padrão
  * tem ondas no topo e no rodapé: conteúdo transbordando invadiria a arte.
  */
-export function paginarServicos(servicos: Servico[], linhasPorPagina = 34): Servico[][] {
+export function paginarServicos(servicos: Servico[], linhasPorPagina = 40): Servico[][] {
+  if (servicos.length === 0) return [];
+
+  const custo = (s: Servico) =>
+    3 + (s.descricao.trim() ? 2 : 0) + s.entregas.filter((x) => x.trim()).length;
+
+  const total = servicos.reduce((acc, s) => acc + custo(s), 0);
+  const nPaginas = Math.max(1, Math.ceil(total / linhasPorPagina));
+  // Alvo por página: em vez de encher a primeira e deixar a última quase vazia,
+  // reparte o conteúdo por igual.
+  const alvo = total / nPaginas;
+
   const paginas: Servico[][] = [];
   let atual: Servico[] = [];
   let linhas = 0;
 
   for (const s of servicos) {
-    const custo = 3 + (s.descricao.trim() ? 2 : 0) + s.entregas.filter((x) => x.trim()).length;
-    if (atual.length && linhas + custo > linhasPorPagina) {
+    const c = custo(s);
+    const restamPaginas = nPaginas - paginas.length;
+    const passouDoAlvo = atual.length > 0 && linhas + c > alvo && restamPaginas > 1;
+    const naoCabe = atual.length > 0 && linhas + c > linhasPorPagina;
+    if (passouDoAlvo || naoCabe) {
       paginas.push(atual);
       atual = [];
       linhas = 0;
     }
     atual.push(s);
-    linhas += custo;
+    linhas += c;
   }
   if (atual.length) paginas.push(atual);
   return paginas;

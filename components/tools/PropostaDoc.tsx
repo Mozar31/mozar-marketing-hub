@@ -482,7 +482,7 @@ export const PROPOSTA_CSS = `
 }
 
 .pp-lista { list-style: none; margin: 0 0 4mm; padding: 0; }
-.pp-check { display: flex; gap: 7px; font-size: 10pt; line-height: 1.5; margin-bottom: 1.6mm; }
+.pp-check { display: flex; gap: 6px; font-size: 10pt; line-height: 1.45; margin-bottom: 0.8mm; }
 .pp-check-ic { flex: 0 0 13px; width: 13px; height: 13px; margin-top: 2.5px; display: block; }
 
 .pp-marca-direita { display: flex; justify-content: flex-end; margin-bottom: 10mm; }
@@ -495,11 +495,12 @@ export const PROPOSTA_CSS = `
 }
 .pp-h3-sub + .pp-para { margin-top: 2mm; }
 
-.pp-servico { margin-bottom: 6mm; }
+.pp-servico { margin-bottom: 4mm; }
 .pp-servico-topo {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
-  border-bottom: 1px solid var(--pp-cinza); padding-bottom: 1.5mm; margin-bottom: 2mm;
+  border-bottom: 1px solid var(--pp-cinza); padding-bottom: 1.2mm; margin-bottom: 1.5mm;
 }
+.pp-servico .pp-para { margin-bottom: 2mm; }
 .pp-preco { font-weight: 800; font-size: 12pt; color: var(--pp-navy); white-space: nowrap; }
 .pp-preco small { font-weight: 600; font-size: 8.5pt; color: var(--pp-corpo); }
 
