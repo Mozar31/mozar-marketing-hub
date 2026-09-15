@@ -129,8 +129,11 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
   const empresa = e.clienteEmpresa.trim();
   const paginasEscopo = paginarServicos(e.servicos);
   const paginasTexto = paginarParagrafos(textoProposta(e));
-  const mensais = e.servicos.filter((s) => s.tipo === "mensal");
-  const unicos = e.servicos.filter((s) => s.tipo === "unico");
+  // 4 pílulas por página; os totais entram só na última.
+  const paginasPilulas: typeof e.servicos[] = [];
+  for (let i = 0; i < Math.max(1, e.servicos.length); i += 4) {
+    paginasPilulas.push(e.servicos.slice(i, i + 4));
+  }
 
   return (
     <div className="pp-doc" style={{ "--pp-navy": e.cor } as CSSProperties} lang="pt-BR">
@@ -159,6 +162,8 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
         <div className="pp-dots" aria-hidden="true">
           <span /><span /><span /><span />
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/proposta/capa.jpg" alt="" aria-hidden="true" className="pp-foto-capa" />
       </Pagina>
 
       {/* ── Sobre a agência (página fixa do padrão) ── */}
@@ -169,15 +174,25 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
               <Marca e={e} invertida />
             </div>
             <h2 className="pp-h1">Sobre a agência</h2>
-            <p className="pp-para">{e.sobreAgencia}</p>
+            <div className="pp-duas-colunas">
+              <p className="pp-para">{e.sobreAgencia}</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/proposta/sobre.jpg" alt="" aria-hidden="true" className="pp-foto-sobre" />
+            </div>
             <h3 className="pp-h2 pp-h2-caixa">PERFIL DA EMPRESA</h3>
             <p className="pp-para">{e.perfilEmpresa}</p>
           </Pagina>
 
           <Pagina e={e}>
             <h2 className="pp-h1">Missão &amp; Valores</h2>
-            <h3 className="pp-h3-sub">Missão</h3>
-            <p className="pp-para">{e.missao}</p>
+            <div className="pp-duas-colunas pp-duas-colunas-foto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/proposta/missao.jpg" alt="" aria-hidden="true" className="pp-foto-missao" />
+              <div>
+                <h3 className="pp-h3-sub">Missão</h3>
+                <p className="pp-para">{e.missao}</p>
+              </div>
+            </div>
             <h3 className="pp-h3-sub">Valores</h3>
             <p className="pp-para">{e.valores}</p>
           </Pagina>
@@ -244,44 +259,35 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
       ))}
 
       {/* ── Investimento ── */}
-      <Pagina e={e}>
-        <h2 className="pp-h1">Investimento</h2>
+      {paginasPilulas.map((pilulas, pi) => {
+        const ultima = pi === paginasPilulas.length - 1;
+        return (
+      <Pagina e={e} key={`orcamento-${pi}`}>
+        <h2 className="pp-h1">Orçamento{pi > 0 ? " (continuação)" : ""}</h2>
 
-        <h3 className="pp-h2">💰 O que está incluso</h3>
-        <ul className="pp-lista">
-          {e.servicos.length === 0 && <Check>Nenhum serviço selecionado ainda.</Check>}
-          {e.servicos.map((s) => (
-            <Check key={s.id}>
-              {s.nome || "Serviço"}: {fmtBRL.format(parseBRL(s.valor))}
-              {s.tipo === "mensal" ? "/mês" : " (valor único)"}
-            </Check>
-          ))}
-        </ul>
+        {pi === 0 && <p className="pp-para pp-aviso">📌 {AVISO_VERBA}</p>}
 
-        <p className="pp-para pp-aviso">📌 {AVISO_VERBA}</p>
-
-        {inv.subtotalMensal > 0 && (
-          <div className="pp-pilula">
+        {pilulas.map((s) => (
+          <div key={s.id} className={`pp-pilula${s.tipo === "unico" ? " pp-pilula-clara" : ""}`}>
+            <span className="pp-pilula-ic" aria-hidden="true">
+              {e.agenciaLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={e.agenciaLogo} alt="" />
+              ) : null}
+            </span>
             <div>
-              <p className="pp-pilula-titulo">INVESTIMENTO MENSAL</p>
-              <p className="pp-pilula-sub">
-                {mensais.map((s) => s.nome).join(" + ") || "Gestão mensal"}
+              <p className="pp-pilula-titulo">{(s.nome || "Serviço").toUpperCase()}</p>
+              <p className="pp-pilula-valor">
+                {fmtBRL.format(parseBRL(s.valor))}
+                <small>{s.tipo === "mensal" ? " / mensal" : " valor único"}</small>
               </p>
-              <p className="pp-pilula-valor">{fmtBRL.format(inv.subtotalMensal)} / mensal</p>
+              {s.descricao.trim() && <p className="pp-pilula-sub">{s.descricao.trim()}</p>}
             </div>
           </div>
-        )}
+        ))}
 
-        {inv.subtotalUnico > 0 && (
-          <div className="pp-pilula pp-pilula-clara">
-            <div>
-              <p className="pp-pilula-titulo">IMPLANTAÇÃO — VALOR ÚNICO</p>
-              <p className="pp-pilula-sub">{unicos.map((s) => s.nome).join(" + ")}</p>
-              <p className="pp-pilula-valor">{fmtBRL.format(inv.subtotalUnico)}</p>
-            </div>
-          </div>
-        )}
-
+        {ultima && (
+        <>
         <ul className="pp-resumo">
           <li>
             <span>Total do primeiro mês</span>
@@ -319,7 +325,11 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
             <b>Observações:</b> {e.observacoes.trim()}
           </p>
         )}
+        </>
+        )}
       </Pagina>
+        );
+      })}
 
       {/* ── Obrigado ── */}
       <Pagina e={e}>
@@ -478,14 +488,35 @@ export const PROPOSTA_CSS = `
 .pp-pilula {
   display: flex; align-items: center; gap: 5mm;
   background: var(--pp-navy); color: #fff;
-  border-radius: 999px; padding: 5mm 9mm; margin: 5mm 0;
+  border-radius: 999px; padding: 4mm 8mm 4mm 4mm; margin: 4mm 0;
+  break-inside: avoid; page-break-inside: avoid;
 }
+.pp-pilula-ic {
+  flex: 0 0 16mm; width: 16mm; height: 16mm; border-radius: 50%;
+  background: #fff; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.pp-pilula-ic img { width: 84%; height: 84%; object-fit: contain; }
+
+/* Fotos do template */
+.pp-foto-capa {
+  position: absolute; right: -14mm; top: 92mm;
+  width: 96mm; height: 96mm; object-fit: cover;
+  border-radius: 50%; border: 1.2mm solid var(--pp-titulo);
+}
+.pp-duas-colunas { display: flex; gap: 7mm; align-items: flex-start; }
+.pp-duas-colunas > .pp-para { flex: 1 1 0; margin-bottom: 0; }
+.pp-duas-colunas > div { flex: 1 1 0; }
+.pp-duas-colunas-foto { align-items: center; }
+.pp-foto-sobre { flex: 0 0 62mm; width: 62mm; height: 84mm; object-fit: cover; }
+.pp-foto-missao { flex: 0 0 66mm; width: 66mm; height: 42mm; object-fit: cover; }
 .pp-pilula-clara { background: var(--pp-azul); }
 .pp-pilula-titulo {
   margin: 0; font-weight: 700; font-size: 10pt; letter-spacing: 0.04em;
 }
-.pp-pilula-sub { margin: 0.5mm 0 1mm; font-size: 8.5pt; opacity: 0.85; }
-.pp-pilula-valor { margin: 0; font-weight: 800; font-size: 17pt; line-height: 1.1; }
+.pp-pilula-sub { margin: 0; font-size: 8.5pt; line-height: 1.45; opacity: 0.88; }
+.pp-pilula-valor { margin: 0.5mm 0 1mm; font-weight: 800; font-size: 16pt; line-height: 1.1; }
+.pp-pilula-valor small { font-weight: 600; font-size: 9pt; opacity: 0.9; }
 
 .pp-resumo { list-style: none; margin: 4mm 0; padding: 0; }
 .pp-resumo li {
