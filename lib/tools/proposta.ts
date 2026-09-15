@@ -396,10 +396,11 @@ export const CATALOGO: ItemCatalogo[] = [
     grupo: "Mensagens",
     nome: "Disparo de WhatsApp — API oficial",
     descricao:
-      "Implementação da API oficial e operação mensal das campanhas. Mensagens do tipo Utility custam R$ 0,06 cada, cobradas à parte pela Meta.",
+      "Disparo pela API oficial do WhatsApp na plataforma InvestCRM (investcrm.com.br): implantação e operação mensal das campanhas. As mensagens do tipo Utility custam R$ 0,06 cada, cobradas à parte pela Meta.",
     tipo: "mensal",
     valor: "500,00",
     entregas: [
+      "Conta criada e configurada no InvestCRM (investcrm.com.br)",
       "Configuração completa da API oficial",
       "Integração com o WhatsApp Business Manager",
       "Ajuste de templates e mensagens padrão",
@@ -743,7 +744,7 @@ export function dataValidade(e: PropostaEstado, base = new Date()): string {
  * (em vez de deixar o navegador quebrar sozinho) porque cada página do padrão
  * tem ondas no topo e no rodapé: conteúdo transbordando invadiria a arte.
  */
-export function paginarServicos(servicos: Servico[], linhasPorPagina = 30): Servico[][] {
+export function paginarServicos(servicos: Servico[], linhasPorPagina = 34): Servico[][] {
   const paginas: Servico[][] = [];
   let atual: Servico[] = [];
   let linhas = 0;

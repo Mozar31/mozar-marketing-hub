@@ -121,6 +121,26 @@ const Check = ({ children }: { children: ReactNode }) => (
   </li>
 );
 
+function Metodo({ aviso }: { aviso: string | null }) {
+  return (
+    <>
+      <h3 className="pp-h2 pp-h2-metodo">Como o trabalho começa</h3>
+      <ol className="pp-metodo">
+        {METODO.map((m) => (
+          <li key={m.n}>
+            <span className="pp-passo">{String(m.n).padStart(2, "0")}</span>
+            <div>
+              <p className="pp-passo-titulo">{m.titulo}</p>
+              <p className="pp-para">{m.texto}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {aviso && <p className="pp-nota">⚖️ {aviso}</p>}
+    </>
+  );
+}
+
 /* ── Documento ───────────────────────────────────────────── */
 
 export function PropostaDoc({ e }: { e: PropostaEstado }) {
@@ -129,6 +149,7 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
   const empresa = e.clienteEmpresa.trim();
   const paginasEscopo = paginarServicos(e.servicos);
   const paginasTexto = paginarParagrafos(textoProposta(e));
+  const metodoJunto = paginasTexto.length === 1;
   // 4 pílulas por página; os totais entram só na última.
   const paginasPilulas: typeof e.servicos[] = [];
   for (let i = 0; i < Math.max(1, e.servicos.length); i += 4) {
@@ -199,7 +220,9 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
         </>
       )}
 
-      {/* ── A proposta, na voz da agência ── */}
+      {/* ── A proposta, na voz da agência ──
+           O método entra na mesma folha quando o texto cabe em uma página só;
+           sobrando espaço, não faz sentido gastar uma folha quase em branco. */}
       {paginasTexto.map((pagina, i) => (
         <Pagina e={e} key={`proposta-${i}`}>
           <h2 className="pp-h1">A proposta{i > 0 ? " (continuação)" : ""}</h2>
@@ -208,10 +231,12 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
               {par}
             </p>
           ))}
+          {metodoJunto && <Metodo aviso={aviso} />}
         </Pagina>
       ))}
 
-      {/* ── Método ── */}
+      {/* ── Método (folha própria só quando o texto ocupou mais de uma) ── */}
+      {!metodoJunto && (
       <Pagina e={e}>
         <h2 className="pp-h1">Como o trabalho começa</h2>
         <ol className="pp-metodo">
@@ -227,6 +252,7 @@ export function PropostaDoc({ e }: { e: PropostaEstado }) {
         </ol>
         {aviso && <p className="pp-nota">⚖️ {aviso}</p>}
       </Pagina>
+      )}
 
       {/* ── Escopo (uma ou mais páginas) ── */}
       {paginasEscopo.map((pagina, i) => (
@@ -461,6 +487,7 @@ export const PROPOSTA_CSS = `
 
 .pp-marca-direita { display: flex; justify-content: flex-end; margin-bottom: 10mm; }
 .pp-marca-invertida { flex-direction: row-reverse; text-align: right; }
+.pp-h2-metodo { margin-top: 8mm; }
 .pp-h2-caixa { margin-top: 7mm; text-transform: uppercase; letter-spacing: 0.03em; font-size: 12pt; }
 .pp-h3-sub {
   margin: 6mm 0 2mm; font-weight: 700; font-size: 13pt; color: var(--pp-titulo);
@@ -500,16 +527,17 @@ export const PROPOSTA_CSS = `
 
 /* Fotos do template */
 .pp-foto-capa {
-  position: absolute; right: -14mm; top: 92mm;
-  width: 96mm; height: 96mm; object-fit: cover;
+  position: absolute; right: -16mm; top: 113mm;
+  width: 108mm; height: 108mm;
+  object-fit: cover; object-position: 38% 45%;
   border-radius: 50%; border: 1.2mm solid var(--pp-titulo);
 }
 .pp-duas-colunas { display: flex; gap: 7mm; align-items: flex-start; }
 .pp-duas-colunas > .pp-para { flex: 1 1 0; margin-bottom: 0; }
 .pp-duas-colunas > div { flex: 1 1 0; }
 .pp-duas-colunas-foto { align-items: center; }
-.pp-foto-sobre { flex: 0 0 62mm; width: 62mm; height: 84mm; object-fit: cover; }
-.pp-foto-missao { flex: 0 0 66mm; width: 66mm; height: 42mm; object-fit: cover; }
+.pp-foto-sobre { flex: 0 0 70mm; width: 70mm; height: 104mm; object-fit: cover; object-position: 50% 40%; }
+.pp-foto-missao { flex: 0 0 71mm; width: 71mm; height: 45mm; object-fit: cover; object-position: 50% 45%; }
 .pp-pilula-clara { background: var(--pp-azul); }
 .pp-pilula-titulo {
   margin: 0; font-weight: 700; font-size: 10pt; letter-spacing: 0.04em;
